@@ -178,15 +178,39 @@ Known limits:
 
 ## Test Results
 
-> **TODO:** run `python scripts/test_scoring.py` and the n8n workflow, then fill this in.
+### Local Python test (one run, 2026-11-23)
 
-Provider / model used: TODO
+Command: `python scripts/test_scoring.py`. Provider: Gemini free tier, model `gemini-3.5-flash-lite`.
 
 | Name | Expected fit | Score | Recommendation |
 |---|---|---|---|
-| TODO | | | |
+| Aarav Mehta | Strong | 95 | Shortlist |
+| Diya Krishnan | Strong | 90 | Shortlist |
+| Kabir Singh | Strong | 88 | Shortlist |
+| Ananya Iyer | Medium | 42 | Reject |
+| Rohan Desai | Medium | 42 | Reject |
+| Meera Nair | Medium | 42 | Reject |
+| Arjun Reddy | Medium | 42 | Reject |
+| Vikram Patel | Weak | 10 | Reject |
+| Priya Sharma | Weak | 5 | Reject |
+| Sneha Gupta | Weak | 5 | Reject |
 
-- Did the 3 strong / 4 medium / 3 weak resumes land where expected? TODO
+**What I observed**
+- All 10 resumes were scored with valid JSON. No errors and no fallback rows.
+- Strong and weak candidates were classified as expected, and the ranking order makes sense.
+- **Weakness:** all 4 medium candidates got exactly 42, just below the Maybe cutoff of 45,
+  so none were marked Maybe. The model seems to give every in-between resume the same
+  score instead of telling them apart.
+- This is a single run. Scores may vary between runs.
+
+**Ideas to fix the medium band (not done yet)**
+- Ask the model to return a score for each of the 5 rubric parts, and add them up in the
+  Code node, so the total is calculated, not guessed.
+- Label a few resumes by hand and adjust the cutoffs to match.
+
+### n8n workflow test
+
+- End-to-end run (Gmail → Sheets): TODO
 - Did the duplicate check work when the same resume was sent twice? TODO
 - Screenshots: add them to `docs/screenshots/` and link them here. TODO
 
