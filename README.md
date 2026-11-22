@@ -148,3 +148,46 @@ PDFs with no text layer will not extract (they would need OCR).
 - Did the 3 strong / 4 medium / 3 weak resumes land where expected? TODO
 - Did the duplicate check work when the same resume was sent twice? TODO
 - Screenshots: add them to `docs/screenshots/` and link them here. TODO
+
+## n8n vs Make vs Zapier
+
+> **TODO:** build the same flow (Gmail → PDF text → Claude → Google Sheets) in Make and
+> Zapier, then write your own observations below. Nothing here is filled in yet.
+
+### Setup time
+- n8n: TODO
+- Make: TODO
+- Zapier: TODO
+
+### Calling the Claude API (HTTP request, headers, JSON body)
+- n8n: TODO
+- Make: TODO
+- Zapier: TODO
+
+### PDF text extraction
+- n8n: TODO
+- Make: TODO
+- Zapier: TODO
+
+### Custom code and JSON parsing
+- n8n: TODO
+- Make: TODO
+- Zapier: TODO
+
+### Duplicate check (update row if email exists)
+- n8n: TODO
+- Make: TODO
+- Zapier: TODO
+
+### Error handling and retries
+- n8n: TODO
+- Make: TODO
+- Zapier: TODO
+
+### Pricing / free tier limits for this use case
+- n8n: TODO
+- Make: TODO
+- Zapier: TODO
+
+### Which one I would pick and why
+TODO
