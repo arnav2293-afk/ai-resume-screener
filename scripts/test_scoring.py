@@ -44,7 +44,12 @@ def parse_claude_json(raw: str) -> dict:
     start, end = cleaned.find("{"), cleaned.rfind("}")
     if start == -1 or end == -1:
         raise ValueError("no JSON object found in reply")
-    data = json.loads(cleaned[start : end + 1])
+    json_text = cleaned[start : end + 1]
+    try:
+        data = json.loads(json_text)
+    except json.JSONDecodeError:
+        # Second try: raw line breaks inside strings are invalid JSON, so turn them into spaces.
+        data = json.loads(re.sub(r"[\r\n]+", " ", json_text))
 
     score = int(round(float(data.get("score", 0))))
     data["score"] = max(0, min(100, score))
