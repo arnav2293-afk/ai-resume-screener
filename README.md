@@ -1,21 +1,46 @@
 # AI Resume Screening Workflow
 
-An n8n workflow that screens resumes automatically with Claude.
+An n8n workflow that screens resumes automatically with an LLM.
 
-When someone emails a PDF resume, the workflow reads it, asks Claude to score it
+When someone emails a PDF resume, the workflow reads it, asks an AI model to score it
 against a job description, and saves the result to Google Sheets. Each candidate
 gets one row, even if they apply twice.
+
+## Which AI model, and why
+
+The workflow was designed for the **Claude API** (`claude-haiku-5-5`). The Claude API
+needs prepaid credits, and I chose not to spend money on a portfolio project, so the
+default version runs on **Google Gemini's free tier** (`gemini-3.5-flash-lite`).
+
+Both versions are in the repo and use the same prompt, rubric and parsing code:
+
+| | Gemini (default, free) | Claude (paid) |
+|---|---|---|
+| n8n workflow | `n8n/resume_screener_workflow.json` | `n8n/resume_screener_workflow_claude.json` |
+| Python test | `python scripts/test_scoring.py` | `python scripts/test_scoring.py --provider claude` |
+| Model | `gemini-3.5-flash-lite` | `claude-haiku-5-5` |
+| Auth header | `x-goog-api-key` | `x-api-key` + `anthropic-version: 2023-06-01` |
+| JSON output | Prompt rules + Gemini JSON mode (`responseMimeType: application/json`) | Prompt rules |
+| Cost | Free, with daily request limits | About $0.10 per million input tokens |
+
+Switching providers only changes the HTTP Request node. The Gmail, PDF, Code and
+Google Sheets nodes stay the same.
+
+**Privacy note:** on Gemini's free tier, Google may use what you send to improve its
+products (the paid tier does not). That's fine for the fake sample resumes here. For
+real candidates' resumes, use a paid tier of either provider.
 
 ## What it does
 
 1. **Gmail Trigger** checks the inbox every minute for new emails with a PDF attached.
 2. **Extract from File** turns the PDF into plain text.
-3. **Claude - Score Resume** (HTTP Request) sends the resume text, the job description
-   and a scoring rubric to the Claude API (`claude-haiku-5-5`).
-4. Claude replies with JSON only: name, email, phone, score (0–100), a 3-line summary,
+3. **Gemini - Score Resume** (HTTP Request) sends the resume text, the job description
+   and a scoring rubric to the AI model.
+4. The model replies with JSON only: name, email, phone, score (0–100), a 3-line summary,
    top skills, missing skills and a recommendation (Shortlist / Maybe / Reject).
-5. **Parse Claude JSON** (Code node) checks and cleans the reply. If something goes wrong
-   it still writes a row, marked `NEEDS MANUAL REVIEW`.
+5. **Parse AI JSON** (Code node) checks and cleans the reply. It understands both Gemini
+   and Claude reply formats. If something goes wrong it still writes a row, marked
+   `NEEDS MANUAL REVIEW`.
 6. **Google Sheets** uses *Append or Update Row*, matched on **Email**, so the same
    candidate is never added twice.
 
@@ -24,7 +49,7 @@ gets one row, even if they apply twice.
 ```mermaid
 flowchart LR
     A[Gmail Trigger<br/>new email with PDF] --> B[Extract from File<br/>PDF to text]
-    B --> C[HTTP Request<br/>Claude API<br/>claude-haiku-5-5]
+    B --> C[HTTP Request<br/>Gemini free tier<br/>or Claude API]
     C --> D[Code node<br/>parse JSON + fallback]
     D --> E[Google Sheets<br/>Append or Update<br/>match on Email]
     P[(prompts/screening_prompt.md<br/>job_description.md)] -. included in request .-> C
@@ -34,7 +59,8 @@ flowchart LR
 
 | Path | What it is |
 |---|---|
-| `n8n/resume_screener_workflow.json` | The n8n workflow, ready to import (no credentials inside) |
+| `n8n/resume_screener_workflow.json` | The n8n workflow using Gemini (free), ready to import, no credentials inside |
+| `n8n/resume_screener_workflow_claude.json` | Same workflow using the Claude API |
 | `prompts/screening_prompt.md` | System prompt: scoring rubric and JSON output rules |
 | `job_description.md` | The AI Intern job description the resumes are scored against |
 | `scripts/generate_sample_resumes.py` | Creates 10 fake resume PDFs with reportlab |
@@ -47,11 +73,15 @@ All sample resumes are made up. Emails use the reserved `example.com` domain.
 
 ## Setup
 
-### 1. Get a Claude API key
+### 1. Get a free Gemini API key
 
-1. Sign in at [console.anthropic.com](https://console.anthropic.com) and create an API key.
-2. For the Python test: `cp .env.example .env` and paste the key after `ANTHROPIC_API_KEY=`.
+1. Go to [aistudio.google.com/apikey](https://aistudio.google.com/apikey), sign in with a
+   Google account and click **Create API key**. No credit card is needed.
+2. For the Python test: `cp .env.example .env` and paste the key after `GEMINI_API_KEY=`.
    `.env` is in `.gitignore`, so the key is never committed.
+
+(For the Claude version, create a key at [console.anthropic.com](https://console.anthropic.com)
+and paste it after `ANTHROPIC_API_KEY=` instead.)
 
 ### 2. Test the prompt locally (optional, but do this first)
 
@@ -63,8 +93,12 @@ python scripts/test_scoring.py
 ```
 
 This prints a table of name, score and recommendation for all 10 sample resumes.
-The script sets a 60-second timeout, lets the SDK retry timeouts, rate limits and server
-errors 3 times, and asks Claude again once if the reply is not valid JSON.
+
+- Each request has a 60-second timeout.
+- The SDK retries timeouts, rate limits and server errors up to 3 times.
+- If the reply isn't valid JSON, the script asks again once.
+- With Gemini it waits 5 seconds between resumes to stay under the free tier's
+  requests-per-minute limit. You can see your exact limits in Google AI Studio.
 
 ### 3. Create the Google Sheet
 
@@ -81,8 +115,11 @@ errors 3 times, and asks Claude again once if the reply is not valid JSON.
 | Node | Credential type | Name in the workflow |
 |---|---|---|
 | Gmail Trigger | Gmail OAuth2 | `Gmail account` |
-| Claude - Score Resume | Header Auth | `Anthropic API Key` (Name: `x-api-key`, Value: your key) |
+| Gemini - Score Resume | Header Auth | `Gemini API Key` (Name: `x-goog-api-key`, Value: your key) |
 | Google Sheets | Google Sheets OAuth2 | `Google Sheets account` |
+
+   For the Claude version, the HTTP node uses a Header Auth credential named
+   `Anthropic API Key` (Name: `x-api-key`, Value: your Claude key).
 
 3. Open each node and pick the credential if it is not already selected.
 4. In the Google Sheets node, replace `PASTE_YOUR_GOOGLE_SHEET_ID_HERE` with your sheet ID
@@ -90,8 +127,7 @@ errors 3 times, and asks Claude again once if the reply is not valid JSON.
 5. Send yourself an email with one of the PDFs from `sample_resumes/` attached, then click
    **Test workflow**. When it works, turn the workflow **Active**.
 
-The `anthropic-version: 2023-06-01` header is set directly in the HTTP node. The API key
-lives only in the n8n credential, never in the workflow file.
+The API key lives only in the n8n credential, never in the workflow file.
 
 ## How the duplicate check works
 
@@ -103,7 +139,7 @@ column to match on.
 - If not, it **appends** a new row.
 
 The Code node lowercases and trims the email first, so `Aarav@Example.com` and
-`aarav@example.com` count as the same person. If Claude cannot read an email from the
+`aarav@example.com` count as the same person. If the model can't find an email in the
 resume, the Code node uses the sender's email address instead, so the check still works.
 
 ## Scoring rubric
@@ -120,26 +156,31 @@ Defined in [`prompts/screening_prompt.md`](prompts/screening_prompt.md).
 | **Total** | **100** |
 
 Recommendation: **Shortlist** at 70 or more, **Maybe** from 45 to 69, **Reject** below 45.
-The Code node recalculates the recommendation from the score if Claude returns anything
+The Code node recalculates the recommendation from the score if the model returns anything
 other than these three words.
 
 ## Error handling
 
 | Problem | What happens |
 |---|---|
-| Claude API is slow or down | HTTP node: 60 s timeout, 3 tries, 5 s apart |
-| API still fails (bad key, rate limit) | Error goes to the Code node, which writes a `NEEDS MANUAL REVIEW` row |
-| Claude wraps JSON in ```` ```json ```` or adds words around it | Code node strips them and keeps only the `{...}` part |
+| AI API is slow or down | HTTP node: 60 s timeout, 3 tries, 5 s apart |
+| API still fails (bad key, free-tier quota used up) | Error goes to the Code node, which writes a `NEEDS MANUAL REVIEW` row |
+| Model stops early (token limit, safety block, refusal) | `NEEDS MANUAL REVIEW` row with the reason |
+| Model wraps JSON in ```` ```json ```` or adds words around it | Code node strips them and keeps only the `{...}` part |
 | JSON has raw line breaks inside a string | Code node tries again with line breaks turned into spaces |
 | Score is out of range or not a number | Clamped to 0–100 |
 | Recommendation is not Shortlist / Maybe / Reject | Recalculated from the score |
 
-Known limits: the workflow reads only the first attachment (`attachment_0`), and scanned
-PDFs with no text layer will not extract (they would need OCR).
+Known limits:
+- The workflow reads only the first attachment (`attachment_0`).
+- Scanned PDFs with no text layer won't extract (they would need OCR).
+- Gemini's free tier has a daily request limit, so it suits a demo, not high volume.
 
 ## Test Results
 
 > **TODO:** run `python scripts/test_scoring.py` and the n8n workflow, then fill this in.
+
+Provider / model used: TODO
 
 | Name | Expected fit | Score | Recommendation |
 |---|---|---|---|
@@ -151,7 +192,7 @@ PDFs with no text layer will not extract (they would need OCR).
 
 ## n8n vs Make vs Zapier
 
-> **TODO:** build the same flow (Gmail → PDF text → Claude → Google Sheets) in Make and
+> **TODO:** build the same flow (Gmail → PDF text → AI model → Google Sheets) in Make and
 > Zapier, then write your own observations below. Nothing here is filled in yet.
 
 ### Setup time
@@ -159,7 +200,7 @@ PDFs with no text layer will not extract (they would need OCR).
 - Make: TODO
 - Zapier: TODO
 
-### Calling the Claude API (HTTP request, headers, JSON body)
+### Calling the AI API (HTTP request, headers, JSON body)
 - n8n: TODO
 - Make: TODO
 - Zapier: TODO
