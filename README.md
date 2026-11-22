@@ -169,6 +169,7 @@ other than these three words.
 | Model wraps JSON in ```` ```json ```` or adds words around it | Code node strips them and keeps only the `{...}` part |
 | JSON has raw line breaks inside a string | Code node tries again with line breaks turned into spaces |
 | Score is out of range or not a number | Clamped to 0–100 |
+| Phone like `+91 ...` read as a formula by Sheets | Sheets node stores values raw (*Cell Format: Let n8n format*) |
 | Recommendation is not Shortlist / Maybe / Reject | Recalculated from the score |
 
 Known limits:
@@ -210,9 +211,31 @@ Command: `python scripts/test_scoring.py`. Provider: Gemini free tier, model `ge
 
 ### n8n workflow test
 
-- End-to-end run (Gmail → Sheets): TODO
-- Did the duplicate check work when the same resume was sent twice? TODO
-- Screenshots: add them to `docs/screenshots/` and link them here. TODO
+Run on n8n Cloud on 2026-11-23, using the Gemini workflow and real emails sent to my Gmail
+with sample PDFs attached.
+
+| Candidate | Score | Recommendation | Result |
+|---|---|---|---|
+| Aarav Mehta | 95 | Shortlist | Row added with summary, top skills and missing skills |
+| Rohan Desai | 42 | Reject | Row added (same score as in the Python test) |
+
+**What worked**
+- End to end, Gmail → PDF text → Gemini → Code node → Google Sheets, with all 5 nodes green.
+- **Duplicate check:** running the workflow again on Aarav's email updated his existing row.
+  The sheet still had one row for him.
+
+**Problems I found and fixed**
+- **Phone showed `#ERROR!` in Sheets.** Numbers like `+91 90000 11101` start with `+`, so
+  Google Sheets treated them as formulas. Fixed by setting the Sheets node's
+  *Cell Format* to *Let n8n format* (RAW), which stores values exactly as sent.
+- **"Requested entity was not found" from Sheets.** The sheet ID was still the placeholder.
+  Fixed by picking the sheet from the list in the node.
+
+**Still to check**
+- Priya Sharma's email was not processed in my test. In test mode, each *Execute* click
+  reads only the newest matching email, and the workflow only reads the first attachment
+  of an email. TODO: re-test with one PDF per email.
+- Screenshots: TODO, add them to `docs/screenshots/` and link them here.
 
 ## n8n vs Make vs Zapier
 
