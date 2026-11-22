@@ -215,7 +215,9 @@
             }
           ]
         },
-        "options": {}
+        "options": {
+          "cellFormat": "RAW"
+        }
       },
       "credentials": {
         "googleSheetsOAuth2Api": {
