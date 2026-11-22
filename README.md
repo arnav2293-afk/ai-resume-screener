@@ -6,6 +6,9 @@ When someone emails a PDF resume, the workflow reads it, asks an AI model to sco
 against a job description, and saves the result to Google Sheets. Each candidate
 gets one row, even if they apply twice.
 
+![Google Sheet filled by the workflow: one strong candidate shortlisted, two rejected](docs/screenshots/02_google_sheet.png)
+*Real output from a test run: three sample resumes emailed in, scored and logged automatically.*
+
 ## Which AI model, and why
 
 The workflow was designed for the **Claude API** (`claude-haiku-5-5`). The Claude API
@@ -54,6 +57,10 @@ flowchart LR
     D --> E[Google Sheets<br/>Append or Update<br/>match on Email]
     P[(prompts/screening_prompt.md<br/>job_description.md)] -. included in request .-> C
 ```
+
+The same workflow in n8n, after a successful run (each node shows a green tick and "1 item"):
+
+![n8n workflow: Gmail Trigger, Extract from File, Gemini, Parse AI JSON, Google Sheets](docs/screenshots/01_workflow.png)
 
 ## Project structure
 
@@ -216,8 +223,11 @@ with sample PDFs attached.
 
 | Candidate | Score | Recommendation | Result |
 |---|---|---|---|
-| Aarav Mehta | 95 | Shortlist | Row added with summary, top skills and missing skills |
-| Rohan Desai | 42 | Reject | Row added (same score as in the Python test) |
+| Aarav Mehta (strong) | 95 | Shortlist | Row added with summary, top skills and missing skills |
+| Rohan Desai (medium) | 42 | Reject | Row added (same score as in the Python test) |
+| Priya Sharma (weak) | 5 | Reject | Row added (same score as in the Python test) |
+
+All three n8n scores matched the local Python test exactly.
 
 **What worked**
 - End to end, Gmail → PDF text → Gemini → Code node → Google Sheets, with all 5 nodes green.
@@ -231,11 +241,25 @@ with sample PDFs attached.
 - **"Requested entity was not found" from Sheets.** The sheet ID was still the placeholder.
   Fixed by picking the sheet from the list in the node.
 
-**Still to check**
-- Priya Sharma's email was not processed in my test. In test mode, each *Execute* click
-  reads only the newest matching email, and the workflow only reads the first attachment
-  of an email. TODO: re-test with one PDF per email.
-- Screenshots: TODO, add them to `docs/screenshots/` and link them here.
+- **A resume seemed to go missing.** In test mode, each *Execute* click reads only the
+  newest matching email, and the workflow only reads the first attachment of an email.
+  Sending one PDF per email and running once per email fixed it. When the workflow is
+  published (active), it checks Gmail every minute and handles each new email by itself.
+
+**Screenshots**
+
+What the Code node outputs for a strong candidate: clean fields ready for the sheet.
+
+![Parse AI JSON output for Aarav Mehta: score 95, Shortlist](docs/screenshots/03_parsed_output.png)
+
+The Google Sheets node: the input from the Code node on the left, and the row it wrote on
+the right ("Success in 715ms").
+
+![Google Sheets node input and output](docs/screenshots/04_sheets_node.png)
+
+A weak candidate is handled the same way: low score, Reject, and a summary saying why.
+
+![Output for Priya Sharma: score 5, Reject](docs/screenshots/05_weak_candidate_output.png)
 
 ## n8n vs Make vs Zapier
 
