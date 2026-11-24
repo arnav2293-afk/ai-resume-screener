@@ -14,7 +14,7 @@ gets one row, even if they apply twice.
 | | What it does | Try it |
 |---|---|---|
 | **1. AI Resume Screener** (this page) | n8n workflow: Gmail → PDF text → AI score → checked JSON → Google Sheets, no duplicates | Import `n8n/resume_screener_workflow.json` into n8n |
-| **2. Smart Job Matcher** ([`matcher/`](matcher/)) | Checks one resume against **every** open job. A free step shortlists, so the AI scores only 3 | `.venv/bin/streamlit run matcher/app.py` |
+| **2. Smart Job Matcher** ([`matcher/`](matcher/)) | Checks one resume against **every** open job. A free step shortlists, so the AI scores only 3 | `.venv/bin/streamlit run matcher/app.py`, or import `n8n/smart_job_matcher_workflow.json` into n8n |
 
 **▶ Live demo page:** [arnav2293-afk.github.io/ai-resume-screener/showcase](https://arnav2293-afk.github.io/ai-resume-screener/showcase/)
 A one-page tour of both prototypes with real test results. Click any candidate to see their
@@ -83,6 +83,9 @@ resume against **every** open job. A free embeddings step (on this computer) sho
   than the one they applied for.
 - **80% fewer AI calls**: 30 instead of 150. About **Rs 0.02 per resume**, measured.
 - **Live demo app:** `.venv/bin/streamlit run matcher/app.py`, then open http://localhost:8501.
+- **n8n version:** [`n8n/smart_job_matcher_workflow.json`](n8n/smart_job_matcher_workflow.json). Gmail → PDF text →
+  Gemini embeddings (one call for the resume and all 15 jobs) → top 3 in a Code node → AI scores 3 →
+  one row per candidate in a "Job Matches" sheet tab. See [`matcher/README.md`](matcher/README.md#n8n-version).
 - Details and full results: [`matcher/README.md`](matcher/README.md).
 
 ## Project structure
@@ -91,6 +94,7 @@ resume against **every** open job. A free embeddings step (on this computer) sho
 |---|---|
 | `n8n/resume_screener_workflow.json` | The n8n workflow using Gemini (free), ready to import, no credentials inside |
 | `n8n/resume_screener_workflow_claude.json` | Same workflow using the Claude API |
+| `n8n/smart_job_matcher_workflow.json` | Smart Job Matcher as an n8n workflow (Gemini free tier) |
 | `prompts/screening_prompt.md` | System prompt: scoring rubric and JSON output rules |
 | `job_description.md` | The AI Intern job description the resumes are scored against |
 | `scripts/generate_sample_resumes.py` | Creates 10 fake resume PDFs with reportlab |
@@ -102,6 +106,7 @@ resume against **every** open job. A free embeddings step (on this computer) sho
 | `prompts/matching_prompt.md` | Rubric for scoring a resume against any job |
 | `showcase/index.html` | One-page tour of both prototypes with real results |
 | `sheet_template.csv` | Header row for the Google Sheet |
+| `matcher/sheet_template_job_matches.csv` | Header row for the matcher's "Job Matches" sheet tab |
 | `docs/screenshots/` | Screenshots of the workflow running |
 | `LICENSE` | MIT License |
 

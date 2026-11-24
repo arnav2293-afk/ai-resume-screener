@@ -43,6 +43,61 @@ with the measured cost for that resume. The **Talent pool** tab runs Idea 2.
 If the AI is busy, sample resumes fall back to their saved scores from the test run. The app
 labels those clearly.
 
+## n8n version
+
+The same idea as an n8n workflow: [`n8n/smart_job_matcher_workflow.json`](../n8n/smart_job_matcher_workflow.json).
+
+```mermaid
+flowchart LR
+    G[Gmail Trigger<br/>subject: job match] --> X[Extract from File<br/>PDF to text]
+    X --> P[Prepare Texts<br/>Code: resume + 15 jobs]
+    P --> E[Gemini Embed<br/>1 call, 16 texts]
+    E --> S[Free Shortlist<br/>Code: cosine, top 3]
+    S --> A[Gemini Score<br/>3 calls]
+    A --> C[Combine Into One Row<br/>Code: cut-off + best match]
+    C --> SH[Google Sheets<br/>Job Matches tab]
+```
+
+| Node | What it does |
+|---|---|
+| **Gmail Trigger** | New emails with a PDF and "job match" in the subject. Put the job code in the subject (e.g. `Job Match JOB-04`), or it uses JOB-01. |
+| **Extract from File** | PDF to plain text. |
+| **Prepare Texts** (Code) | Holds the 15 open jobs. Finds the name and email in the resume. Builds one embeddings request: the resume plus all 15 jobs. |
+| **Gemini - Embed Resume + Jobs** (HTTP) | `gemini-embedding-001`, free. Turns all 16 texts into numbers in one call. |
+| **Free Shortlist (top 3)** (Code) | Cosine similarity between the resume and each job, keeps the top 3. No AI call. If the embeddings call failed, it scores only the job they applied for, so nobody is lost. |
+| **Gemini - Score Top 3** (HTTP) | `gemini-3.5-flash-lite`, the rubric in `prompts/matching_prompt.md`. One call per shortlisted job. |
+| **Combine Into One Row** (Code) | Checks each JSON reply, applies the 75 / 50 cut-off in code, picks the best match, and says if a better opening was found. Failed calls become `REVIEW`. |
+| **Google Sheets - Job Matches** | Append or Update on **Email**, so one row per candidate. |
+
+The local Python version uses a model on this computer for the free step. n8n Cloud can't run that,
+so this version uses Gemini's free embeddings API instead. It gave the same #1 job as the local
+model for all 10 sample resumes.
+
+**Setup**
+1. In your Google Sheet, add a tab named `Job Matches`. Paste the header row from
+   [`sheet_template_job_matches.csv`](sheet_template_job_matches.csv) into row 1.
+2. In n8n: **Import from File**, choose `n8n/smart_job_matcher_workflow.json`.
+3. Pick the same credentials as the screener: Gmail, the Gemini API Key (Header Auth,
+   `x-goog-api-key`) on both HTTP nodes, and Google Sheets. Paste your Sheet ID in the Sheets node.
+4. Email a sample resume to yourself with the subject `Job Match JOB-01`, then click **Execute workflow**.
+
+The screener workflow also picks up emails with a PDF. Deactivate it while testing this one, or
+you'll get a row in both sheets.
+
+**Tested (24 Nov 2026), outside n8n:** each Code node's JavaScript was run as is, and the request
+bodies it builds were sent to the real Gemini API.
+- Priya Sharma (applied JOB-01): best match **Accounts and Taxation Executive, 90**, result "Better
+  opening found". The applied job was not in her top 3.
+- Rohan Desai (applied JOB-04): **Frontend Web Developer Intern, 92**, result "Applied job is the best fit".
+- About 1,600 to 1,800 input tokens and 150 output tokens per resume, 4 API calls (1 embedding + 3 scoring).
+- Failure tests: a failed embeddings call, a failed AI call, invalid JSON and a cut-off reply all
+  produce a `REVIEW` row instead of losing the candidate.
+- Not yet run inside n8n itself (Gmail and Sheets steps). These use the same settings as the
+  screener workflow, which has run end to end.
+
+**Limit:** the 15 jobs are embedded again for every resume. That's fine at this size and free. With
+hundreds of jobs, store the job embeddings once (in a sheet or a vector store) and embed only the resume.
+
 ## Command line
 
 ```bash
