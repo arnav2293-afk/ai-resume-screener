@@ -86,6 +86,8 @@ resume against **every** open job. A free embeddings step (on this computer) sho
 - **n8n version:** [`n8n/smart_job_matcher_workflow.json`](n8n/smart_job_matcher_workflow.json). Gmail → PDF text →
   Gemini embeddings (one call for the resume and all 15 jobs) → top 3 in a Code node → AI scores 3 →
   one row per candidate in a "Job Matches" sheet tab. See [`matcher/README.md`](matcher/README.md#n8n-version).
+
+![Smart Job Matcher running in n8n: all 8 nodes green, 3 items after the free shortlist](docs/screenshots/06_matcher_workflow_run.png)
 - Details and full results: [`matcher/README.md`](matcher/README.md).
 
 ## Project structure
@@ -105,8 +107,7 @@ resume against **every** open job. A free embeddings step (on this computer) sho
 | `matcher/jobs.json` | The 15 made-up open jobs |
 | `prompts/matching_prompt.md` | Rubric for scoring a resume against any job |
 | `showcase/index.html` | One-page tour of both prototypes with real results |
-| `sheet_template.csv` | Header row for the Google Sheet |
-| `matcher/sheet_template_job_matches.csv` | Header row for the matcher's "Job Matches" sheet tab |
+| `sheet_templates/` | Header rows for the two Google Sheet tabs (screener and Job Matches) |
 | `docs/screenshots/` | Screenshots of the workflow running |
 | `LICENSE` | MIT License |
 
@@ -144,7 +145,7 @@ This prints a table of name, score and recommendation for all 10 sample resumes.
 ### 3. Create the Google Sheet
 
 1. Create a new Google Sheet.
-2. Import `sheet_template.csv` (File → Import → Upload), or type the headers in row 1:
+2. Import `sheet_templates/resume_screener.csv` (File → Import → Upload), or type the headers in row 1:
    `Received At, Name, Email, Phone, Score, Recommendation, Summary, Top Skills, Missing Skills`
 3. Copy the sheet ID from the URL: `docs.google.com/spreadsheets/d/<THIS_PART>/edit`.
 

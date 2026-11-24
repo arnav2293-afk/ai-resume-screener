@@ -75,7 +75,7 @@ model for all 10 sample resumes.
 
 **Setup**
 1. In your Google Sheet, add a tab named `Job Matches`. Paste the header row from
-   [`sheet_template_job_matches.csv`](sheet_template_job_matches.csv) into row 1.
+   [`sheet_templates/job_matches.csv`](../sheet_templates/job_matches.csv) into row 1.
 2. In n8n: **Import from File**, choose `n8n/smart_job_matcher_workflow.json`.
 3. Pick the same credentials as the screener: Gmail, the Gemini API Key (Header Auth,
    `x-goog-api-key`) on both HTTP nodes, and Google Sheets. Paste your Sheet ID in the Sheets node.
@@ -95,6 +95,16 @@ bodies it builds were sent to the real Gemini API.
 - **Then run end to end in n8n Cloud:** a test email with Priya's resume (subject `Job Match JOB-01`)
   went through all 8 nodes and wrote one row to the Job Matches tab: best match Accounts and
   Taxation Executive, 90, Shortlist, "Better opening found", 3 AI calls.
+- **A second n8n run showed the failure handling for real:** one of the 3 scoring calls got a
+  503 "server busy" error from the free tier, even after 3 tries. The row still came through:
+  best match Accounts 95, and Result says `NEEDS MANUAL REVIEW (some AI calls failed)`, so a
+  person checks it. The run took 44.6 s, mostly the planned pauses between free-tier calls.
+
+![All 8 nodes green after a run in n8n Cloud](../docs/screenshots/06_matcher_workflow_run.png)
+
+![The Job Matches row from the second run: best match Accounts 95, one call flagged for review](../docs/screenshots/07_matcher_job_matches_row.png)
+
+<img src="../docs/screenshots/08_matcher_execution_log.png" alt="n8n execution log: success in 44.6 s" width="360">
 
 **Limit:** the 15 jobs are embedded again for every resume. That's fine at this size and free. With
 hundreds of jobs, store the job embeddings once (in a sheet or a vector store) and embed only the resume.
