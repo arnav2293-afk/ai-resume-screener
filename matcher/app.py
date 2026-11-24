@@ -201,7 +201,7 @@ with tab_match:
                 "Sent to AI": "Yes" if row["rank"] <= len(res["scored"]) else "",
                 "Applied for": "Applied" if row["job"]["job_code"] == res["applied"] else "",
             } for row in res["all_jobs"]])
-            st.dataframe(table, hide_index=True, use_container_width=True, height=300, column_config={
+            st.dataframe(table, hide_index=True, width="stretch", height=300, column_config={
                 "Similarity": st.column_config.ProgressColumn(min_value=0.0, max_value=1.0, format="%.2f"),
             })
 
@@ -278,7 +278,7 @@ with tab_pool:
         "Candidate": resumes[i]["name"],
         "Similarity": float(sims[i]),
         "Suggest?": "Yes" if sims[i] >= sjm.POOL_MIN_SIMILARITY else "No, below 0.45",
-    } for i in order]), hide_index=True, use_container_width=True, column_config={
+    } for i in order]), hide_index=True, width="stretch", column_config={
         "Similarity": st.column_config.ProgressColumn(min_value=0.0, max_value=1.0, format="%.2f"),
     })
 
@@ -287,4 +287,4 @@ with tab_jobs:
     st.caption("The made-up openings the matcher checks every resume against.")
     st.dataframe(pd.DataFrame([{"Code": j["job_code"], "Title": j["title"], "Client": j["client"],
                                 "Description": j["description"]} for j in jobs]),
-                 hide_index=True, use_container_width=True, height=560)
+                 hide_index=True, width="stretch", height=560)

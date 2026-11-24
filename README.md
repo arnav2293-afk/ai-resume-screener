@@ -9,6 +9,16 @@ gets one row, even if they apply twice.
 ![Google Sheet filled by the workflow: one strong candidate shortlisted, two rejected](docs/screenshots/02_google_sheet.png)
 *Real output from a test run: three sample resumes emailed in, scored and logged automatically.*
 
+**Two prototypes in this repo**
+
+| | What it does | Try it |
+|---|---|---|
+| **1. AI Resume Screener** (this page) | n8n workflow: Gmail → PDF text → AI score → checked JSON → Google Sheets, no duplicates | Import `n8n/resume_screener_workflow.json` into n8n |
+| **2. Smart Job Matcher** ([`matcher/`](matcher/)) | Checks one resume against **every** open job. A free step shortlists, so the AI scores only 3 | `.venv/bin/streamlit run matcher/app.py` |
+
+A one-page tour of both, with real results, is in [`showcase/index.html`](showcase/index.html)
+(download and open it in a browser).
+
 ## Which AI model, and why
 
 The workflow was designed for the **Claude API** (`claude-haiku-5-5`). The Claude API
@@ -62,12 +72,17 @@ The same workflow in n8n, after a successful run (each node shows a green tick a
 
 ![n8n workflow: Gmail Trigger, Extract from File, Gemini, Parse AI JSON, Google Sheets](docs/screenshots/01_workflow.png)
 
-## New: Smart Job Matcher prototype
+## Prototype 2: Smart Job Matcher
 
-[`matcher/`](matcher/) checks one resume against **every** open job. A free embeddings step
-shortlists the top 3 jobs, and the AI scores only those 3. In a test with 10 resumes and 15 jobs,
-7 of 10 candidates had a better-fitting opening than the one they applied for, using 80% fewer
-AI calls (about Rs 0.02 per resume, measured). See [`matcher/README.md`](matcher/README.md).
+The screener above checks a resume against one job only. [`matcher/`](matcher/) checks one
+resume against **every** open job. A free embeddings step (on this computer) shortlists the top
+3 jobs, and the AI scores only those 3.
+
+- In a test with 10 resumes and 15 jobs, **7 of 10 candidates had a better-fitting opening**
+  than the one they applied for.
+- **80% fewer AI calls**: 30 instead of 150. About **Rs 0.02 per resume**, measured.
+- **Live demo app:** `.venv/bin/streamlit run matcher/app.py`, then open http://localhost:8501.
+- Details and full results: [`matcher/README.md`](matcher/README.md).
 
 ## Project structure
 
@@ -80,10 +95,14 @@ AI calls (about Rs 0.02 per resume, measured). See [`matcher/README.md`](matcher
 | `scripts/generate_sample_resumes.py` | Creates 10 fake resume PDFs with reportlab |
 | `sample_resumes/` | The 10 generated PDFs (3 strong, 4 medium, 3 weak fit) |
 | `scripts/test_scoring.py` | Scores the sample PDFs from Python, without n8n |
-| `matcher/` | Smart Job Matcher prototype: one resume vs all open jobs |
+| `matcher/smart_job_matcher.py` | Smart Job Matcher, command line: one resume vs all open jobs |
+| `matcher/app.py` | Smart Job Matcher live demo app (Streamlit) |
+| `matcher/jobs.json` | The 15 made-up open jobs |
 | `prompts/matching_prompt.md` | Rubric for scoring a resume against any job |
+| `showcase/index.html` | One-page tour of both prototypes with real results |
 | `sheet_template.csv` | Header row for the Google Sheet |
 | `docs/screenshots/` | Screenshots of the workflow running |
+| `LICENSE` | MIT License |
 
 All sample resumes are made up. Emails use the reserved `example.com` domain.
 
@@ -195,7 +214,7 @@ Known limits:
 
 ## Test Results
 
-### Local Python test (one run, 2026-11-23)
+### Local Python test (2026-11-23)
 
 Command: `python scripts/test_scoring.py`. Provider: Gemini free tier, model `gemini-3.5-flash-lite`.
 
@@ -218,7 +237,7 @@ Command: `python scripts/test_scoring.py`. Provider: Gemini free tier, model `ge
 - **Weakness:** all 4 medium candidates got exactly 42, just below the Maybe cutoff of 45,
   so none were marked Maybe. The model seems to give every in-between resume the same
   score instead of telling them apart.
-- This is a single run. Scores may vary between runs.
+- A second run gave the same scores for 9 of 10 resumes. Only Sneha Gupta changed, from 5 to 0.
 
 **Ideas to fix the medium band (not done yet)**
 - Ask the model to return a score for each of the 5 rubric parts, and add them up in the
@@ -249,7 +268,6 @@ All three n8n scores matched the local Python test exactly.
   *Cell Format* to *Let n8n format* (RAW), which stores values exactly as sent.
 - **"Requested entity was not found" from Sheets.** The sheet ID was still the placeholder.
   Fixed by picking the sheet from the list in the node.
-
 - **A resume seemed to go missing.** In test mode, each *Execute* click reads only the
   newest matching email, and the workflow only reads the first attachment of an email.
   Sending one PDF per email and running once per email fixed it. When the workflow is
@@ -270,45 +288,13 @@ A weak candidate is handled the same way: low score, Reject, and a summary sayin
 
 ![Output for Priya Sharma: score 5, Reject](docs/screenshots/05_weak_candidate_output.png)
 
-## n8n vs Make vs Zapier
+## Next: compare with Make and Zapier
 
-> **TODO:** build the same flow (Gmail → PDF text → AI model → Google Sheets) in Make and
-> Zapier, then write your own observations below. Nothing here is filled in yet.
+Not built yet. I built and tested the n8n version first. The plan is to rebuild the same
+Gmail → Google Sheets steps in Make and Zapier, and compare:
 
-### Setup time
-- n8n: TODO
-- Make: TODO
-- Zapier: TODO
-
-### Calling the AI API (HTTP request, headers, JSON body)
-- n8n: TODO
-- Make: TODO
-- Zapier: TODO
-
-### PDF text extraction
-- n8n: TODO
-- Make: TODO
-- Zapier: TODO
-
-### Custom code and JSON parsing
-- n8n: TODO
-- Make: TODO
-- Zapier: TODO
-
-### Duplicate check (update row if email exists)
-- n8n: TODO
-- Make: TODO
-- Zapier: TODO
-
-### Error handling and retries
-- n8n: TODO
-- Make: TODO
-- Zapier: TODO
-
-### Pricing / free tier limits for this use case
-- n8n: TODO
-- Make: TODO
-- Zapier: TODO
-
-### Which one I would pick and why
-TODO
+- setup time, and how each one calls an AI API (HTTP request, headers, JSON body)
+- PDF text extraction and custom code for checking JSON
+- the duplicate check (update the row if the email exists)
+- error handling and retries
+- free-tier limits and cost for this use case
