@@ -84,7 +84,7 @@ model for all 10 sample resumes.
 The screener workflow also picks up emails with a PDF. Deactivate it while testing this one, or
 you'll get a row in both sheets.
 
-**Tested (24 Nov 2026), outside n8n:** each Code node's JavaScript was run as is, and the request
+**Tested (24 Nov 2026).** First outside n8n: each Code node's JavaScript was run as is, and the request
 bodies it builds were sent to the real Gemini API.
 - Priya Sharma (applied JOB-01): best match **Accounts and Taxation Executive, 90**, result "Better
   opening found". The applied job was not in her top 3.
@@ -92,8 +92,9 @@ bodies it builds were sent to the real Gemini API.
 - About 1,600 to 1,800 input tokens and 150 output tokens per resume, 4 API calls (1 embedding + 3 scoring).
 - Failure tests: a failed embeddings call, a failed AI call, invalid JSON and a cut-off reply all
   produce a `REVIEW` row instead of losing the candidate.
-- Not yet run inside n8n itself (Gmail and Sheets steps). These use the same settings as the
-  screener workflow, which has run end to end.
+- **Then run end to end in n8n Cloud:** a test email with Priya's resume (subject `Job Match JOB-01`)
+  went through all 8 nodes and wrote one row to the Job Matches tab: best match Accounts and
+  Taxation Executive, 90, Shortlist, "Better opening found", 3 AI calls.
 
 **Limit:** the 15 jobs are embedded again for every resume. That's fine at this size and free. With
 hundreds of jobs, store the job embeddings once (in a sheet or a vector store) and embed only the resume.
