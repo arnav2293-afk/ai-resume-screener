@@ -29,7 +29,21 @@ flowchart LR
 candidates already in the pool. It's free, with no AI call. If nobody is close enough (similarity
 below 0.45), it says "start fresh sourcing" instead of suggesting weak candidates.
 
-## Run it
+## Live demo app
+
+```bash
+.venv/bin/streamlit run matcher/app.py
+```
+
+Then open http://localhost:8501. Pick a sample resume (or upload a made-up one), choose the job
+they applied for, and click **Run matcher**. The app shows the 4 steps live: the extracted text,
+the free shortlist across all 15 jobs, the AI scores for the top 3 with reasons, and the result
+with the measured cost for that resume. The **Talent pool** tab runs Idea 2.
+
+If the AI is busy, sample resumes fall back to their saved scores from the test run. The app
+labels those clearly.
+
+## Command line
 
 ```bash
 pip install -r matcher/requirements.txt
