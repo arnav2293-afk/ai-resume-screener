@@ -1,0 +1,401 @@
+<title>Arnav's Hiring Prototypes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a single reading column with a two-step story (tab 1 = regular automation, tab 2 = efficient automation); the matcher demo is a list-and-detail tool. */
+:root {
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --sunken: #eef0f7;
+  --line: #dde1ec;
+  --fg: #171c2e;
+  --muted: #5b6380;
+  --accent: #2f4fd6;
+  --accent-soft: #e6eafd;
+  --good: #137a4b; --good-soft: #def4e9;
+  --warn: #9a6400; --warn-soft: #fbefd5;
+  --bad: #b3283a; --bad-soft: #fbe3e6;
+  --bar: #2f4fd6;
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --radius: 12px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1220; --surface: #171b2c; --sunken: #1e2337; --line: #2c3250; --fg: #e9ecf7; --muted: #a2a9c4;
+  --accent: #8ea2ff; --accent-soft: #232b52; --good: #5fd39b; --good-soft: #163527; --warn: #f0be5c; --warn-soft: #3a2f14;
+  --bad: #ff8a98; --bad-soft: #3d1c23; --bar: #8ea2ff; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1220; --surface: #171b2c; --sunken: #1e2337; --line: #2c3250; --fg: #e9ecf7; --muted: #a2a9c4;
+  --accent: #8ea2ff; --accent-soft: #232b52; --good: #5fd39b; --good-soft: #163527; --warn: #f0be5c; --warn-soft: #3a2f14;
+  --bad: #ff8a98; --bad-soft: #3d1c23; --bar: #8ea2ff; color-scheme: dark }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.55; margin: 0; }
+.wrap { max-width: 1060px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 56px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: clamp(26px, 4vw, 36px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 22px; font-weight: 600; }
+h3 { font-size: 16px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+.muted { color: var(--muted); }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.mono { font-family: var(--font-mono); font-size: 0.9em; }
+.num { font-variant-numeric: tabular-nums; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) { .fade { animation: fade .25s ease-out; } @keyframes fade { from { opacity: .4 } to { opacity: 1 } } }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: baseline; margin-bottom: 18px; }
+.who { font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); }
+.intro { display: grid; gap: 10px; margin-bottom: 22px; }
+
+/* tabs */
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 26px; }
+.tab { text-align: left; border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: var(--radius); padding: 14px 16px; cursor: pointer; display: grid; gap: 2px; font: inherit; }
+.tab .t-label { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.tab .t-name { font-family: var(--font-display); font-size: 18px; font-weight: 600; }
+.tab .t-sub { font-size: 13px; color: var(--muted); }
+.tab[aria-selected="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); }
+.tab[aria-selected="true"] .t-label { color: var(--accent); }
+
+section.panel { display: grid; gap: 28px; }
+.block { display: grid; gap: 14px; }
+
+/* flow strip */
+.flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step { flex: 1 1 150px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 4px; align-content: start; }
+.step b { font-family: var(--font-display); font-weight: 600; font-size: 14px; }
+.step span { font-size: 13px; color: var(--muted); }
+.step .k { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.step.free { border-style: dashed; }
+
+/* stats */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 2px; }
+.stat .v { font-family: var(--font-display); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat .l { font-size: 13px; color: var(--muted); }
+
+/* screenshots */
+.shots { display: grid; gap: 10px; }
+.shot-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.shot-frame { background: #1b1f2e; border-radius: 10px; padding: 10px; overflow-x: auto; }
+.shot-frame img { display: block; max-width: 100%; border-radius: 6px; margin: 0 auto; }
+.caption { font-size: 13px; color: var(--muted); }
+
+/* callout */
+.callout { border: 1px solid var(--line); border-left: 4px solid var(--warn); background: var(--surface); border-radius: 10px; padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.callout p { flex: 1 1 380px; }
+.btn { border: 0; background: var(--accent); color: #fff; font: inherit; font-weight: 600; border-radius: 8px; padding: 9px 14px; cursor: pointer; }
+:root[data-theme="dark"] .btn { color: #0f1220; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn { color: #0f1220; } }
+
+/* principles */
+.principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.pr { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 4px; align-content: start; }
+.pr .k { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.pr b { font-family: var(--font-display); font-size: 17px; font-weight: 600; }
+.pr span { font-size: 13.5px; color: var(--muted); }
+
+/* demo */
+.demo { display: grid; grid-template-columns: 230px 1fr; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
+@media (max-width: 720px) { .demo { grid-template-columns: 1fr; } }
+.people { display: grid; gap: 4px; align-content: start; }
+.person { text-align: left; border: 1px solid transparent; background: transparent; color: var(--fg); font: inherit; border-radius: 8px; padding: 8px 10px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.person:hover { background: var(--sunken); }
+.person[aria-selected="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.person small { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); flex: none; }
+.dot.same { background: var(--line); }
+@media (max-width: 720px) { .people { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
+.detail { min-width: 0; display: grid; gap: 12px; align-content: start; }
+.detail-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline; }
+.applied { font-size: 13.5px; color: var(--muted); }
+.banner { border-radius: 8px; padding: 10px 12px; font-size: 14px; background: var(--good-soft); color: var(--good); font-weight: 500; }
+.banner.neutral { background: var(--sunken); color: var(--muted); }
+.jobrow { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 8px; }
+.jobrow.best { border-color: var(--good); box-shadow: inset 0 0 0 1px var(--good); }
+.jr-top { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; }
+.jr-title { font-weight: 600; }
+.jr-code { color: var(--muted); }
+.score { display: flex; gap: 8px; align-items: center; }
+.score .n { font-family: var(--font-display); font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+.badge { font-size: 12px; font-weight: 600; border-radius: 999px; padding: 3px 9px; }
+.b-Shortlist { background: var(--good-soft); color: var(--good); }
+.b-Maybe { background: var(--warn-soft); color: var(--warn); }
+.b-Reject { background: var(--bad-soft); color: var(--bad); }
+.b-best { background: var(--good); color: var(--surface); }
+.simline { display: grid; grid-template-columns: 110px 1fr 44px; gap: 8px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.track { height: 6px; background: var(--sunken); border-radius: 6px; overflow: hidden; }
+.track i { display: block; height: 100%; background: var(--bar); border-radius: 6px; }
+.reason { font-size: 13.5px; }
+
+/* pool */
+.pool { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: grid; gap: 12px; }
+.pool-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+select { font: inherit; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); max-width: 100%; }
+.cand { display: grid; grid-template-columns: 140px 1fr 44px; gap: 10px; align-items: center; font-size: 14px; }
+.cand.weak { opacity: .45; }
+.thresh { font-size: 12.5px; color: var(--muted); }
+
+/* cost table */
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); background: var(--sunken); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 720px) { .two { grid-template-columns: 1fr; } }
+ul.plain { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px 18px; justify-content: space-between; }
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <span class="who">Arnav Shahi · B.Tech AI, ML &amp; Data Science, SIT Indore</span>
+    <span class="note">All candidates and jobs are made up · Results are from real test runs</span>
+  </div>
+
+  <div class="intro">
+    <h1>Automate the reading, keep the decision human</h1>
+    <p class="muted">Two working prototypes. The first does what most automation does: screen resumes for one job. The second makes it efficient: check every resume against every opening, spending AI money only where it matters.</p>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Prototypes">
+    <button class="tab" role="tab" id="tab-screener" aria-controls="p-screener" data-view="screener">
+      <span class="t-label">Prototype 1 · Regular automation</span>
+      <span class="t-name">AI Resume Screener</span>
+      <span class="t-sub">n8n workflow: Gmail to Google Sheets</span>
+    </button>
+    <button class="tab" role="tab" id="tab-matcher" aria-controls="p-matcher" data-view="matcher">
+      <span class="t-label">Prototype 2 · Efficient automation</span>
+      <span class="t-name">Smart Job Matcher</span>
+      <span class="t-sub">One resume, every opening, low cost</span>
+    </button>
+  </div>
+
+  <!-- ===================== PROTOTYPE 1 ===================== -->
+  <section class="panel fade" id="p-screener" role="tabpanel" aria-labelledby="tab-screener">
+    <div class="block">
+      <span class="eyebrow">What it does</span>
+      <h2>A resume email comes in. A scored row comes out.</h2>
+      <div class="flow">
+        <div class="step"><span class="k">Trigger</span><b>Gmail</b><span>Checks the inbox every minute for emails with a PDF.</span></div>
+        <div class="step"><span class="k">Read</span><b>Extract from File</b><span>Turns the PDF into plain text.</span></div>
+        <div class="step"><span class="k">AI</span><b>Score the resume</b><span>Job description + rubric go to the AI. It replies in JSON only.</span></div>
+        <div class="step"><span class="k">Check</span><b>Code node</b><span>Validates the JSON. If anything fails: "needs manual review".</span></div>
+        <div class="step"><span class="k">Save</span><b>Google Sheets</b><span>Append or update, matched on email. No duplicates.</span></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <span class="eyebrow">Proof it runs</span>
+      <div class="shots">
+        <div class="shot-tabs" id="shotTabs"></div>
+        <div class="shot-frame"><img id="shotImg" alt=""></div>
+        <p class="caption" id="shotCap"></p>
+      </div>
+    </div>
+
+    <div class="block">
+      <span class="eyebrow">Results</span>
+      <div class="stats">
+        <div class="stat"><span class="v">10</span><span class="l">sample resumes scored by the test script, 2 runs</span></div>
+        <div class="stat"><span class="v">3</span><span class="l">run end to end through n8n, same scores as the script</span></div>
+        <div class="stat"><span class="v">1 row</span><span class="l">per candidate after re-sending the same resume</span></div>
+        <div class="stat"><span class="v">715 ms</span><span class="l">to write a row to Google Sheets</span></div>
+      </div>
+      <p class="muted">Rubric out of 100: skills 40, projects 30, tools 15, education 10, clarity 5. Fixed one real bug on the way: Sheets read phone numbers like +91 90000 11101 as formulas, so cells are now stored exactly as sent.</p>
+    </div>
+
+    <div class="callout">
+      <p><b>The limit:</b> it checks each resume against <b>one job only</b>. A candidate rejected for that job may be a strong fit for another open role, and that match is missed. Every resume also goes to the AI, whether it is close or not.</p>
+      <button class="btn" type="button" data-go="matcher">See the efficient version</button>
+    </div>
+  </section>
+
+  <!-- ===================== PROTOTYPE 2 ===================== -->
+  <section class="panel fade" id="p-matcher" role="tabpanel" aria-labelledby="tab-matcher" hidden>
+    <div class="block">
+      <span class="eyebrow">The principles</span>
+      <h2>Same goal, smarter way: automate only the part that saves time and money</h2>
+      <div class="principles">
+        <div class="pr"><span class="k">Time saving</span><b>Every opening at once</b><span>Each resume is checked against all 15 open jobs, not just the one it was sent for.</span></div>
+        <div class="pr"><span class="k">Cost saving</span><b>AI scores only 3 jobs</b><span>30 AI calls instead of 150. About ₹0.02 per resume, measured.</span></div>
+        <div class="pr"><span class="k">Efficient</span><b>Free step first</b><span>A small model on our own computer shortlists by meaning. No data leaves, no cost.</span></div>
+        <div class="pr"><span class="k">Human decides</span><b>The recruiter makes the call</b><span>Code applies the 75 cut-off the same way every time. People choose who moves forward.</span></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <span class="eyebrow">How it works</span>
+      <div class="flow">
+        <div class="step"><span class="k">Step 1</span><b>New resume</b><span>Arrives by email or upload.</span></div>
+        <div class="step free"><span class="k">Step 2 · free</span><b>Shortlist</b><span>Embeddings compare it with every job. Keep the top 3.</span></div>
+        <div class="step"><span class="k">Step 3 · paid, small</span><b>AI scores 3</b><span>Rubric score and a one-line reason for each.</span></div>
+        <div class="step"><span class="k">Step 4</span><b>Recruiter decides</b><span>75+ Shortlist, 50 to 74 Maybe, below 50 Reject.</span></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <span class="eyebrow">Try it · real results, 24 Nov 2026</span>
+      <h2 id="summaryLine"></h2>
+      <div class="demo">
+        <div class="people" id="people" role="listbox" aria-label="Candidates"></div>
+        <div class="detail fade" id="detail" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <span class="eyebrow">Idea 2 · Talent pool rediscovery</span>
+      <h2>A new job opens. Search people you already have first.</h2>
+      <div class="pool">
+        <div class="pool-head">
+          <label for="jobPick">New opening</label>
+          <select id="jobPick"></select>
+          <span class="thresh">Free: no AI call. Suggests someone only if similarity is 0.45 or more.</span>
+        </div>
+        <div id="poolOut" class="fade" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="block">
+        <span class="eyebrow">Cost, measured in the test run</span>
+        <div class="tablewrap"><table>
+          <tbody>
+            <tr><td>AI calls</td><td class="r"><b>30</b> instead of 150</td></tr>
+            <tr><td>AI calls saved</td><td class="r">80%</td></tr>
+            <tr><td>Tokens</td><td class="r">17,951 in · 1,554 out</td></tr>
+            <tr><td>Cost at Claude Haiku 5.5 prices</td><td class="r">$0.0026 total</td></tr>
+            <tr><td>Per resume</td><td class="r"><b>about ₹0.02</b></td></tr>
+            <tr><td>Shortlist step</td><td class="r">₹0, runs locally</td></tr>
+          </tbody>
+        </table></div>
+        <p class="caption">Haiku 5.5 list price: $0.10 in, $0.50 out per million tokens. Rupees at an assumed ₹88 per USD. Token counts are from Gemini; Claude counts slightly differently and thinks before answering, so ₹0.15 per resume is a safe upper estimate.</p>
+      </div>
+      <div class="block">
+        <span class="eyebrow">Honest limits and next steps</span>
+        <ul class="plain">
+          <li>Small test: 10 made-up resumes, 15 made-up jobs.</li>
+          <li>To trust it: compare its picks with recruiters' picks on past, closed roles.</li>
+          <li>Add keyword search (BM25) to catch exact terms like NISM or GST, as in my Ask Your PDF project.</li>
+          <li>Real candidate data goes to a paid AI tier or a local model, never a free tier.</li>
+          <li>The same pattern fits SLA agreements: read, extract, check, track, a person decides.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Code and results: <a href="https://github.com/arnav2293-afk/ai-resume-screener" target="_blank" rel="noopener">github.com/arnav2293-afk/ai-resume-screener</a></span>
+    <span>Built with n8n, Python, sentence-transformers and an LLM API</span>
+  </footer>
+</div>
+
+<script>
+const DATA = /*DATA*/null;
+const SHOTS = /*SHOTS*/null;
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const rec = (s) => s >= 75 ? "Shortlist" : s >= 50 ? "Maybe" : "Reject";
+
+/* ---------- tabs with #screener / #matcher ---------- */
+function show(view) {
+  if (view !== "screener" && view !== "matcher") view = "screener";
+  for (const v of ["screener", "matcher"]) {
+    document.getElementById("p-" + v).hidden = v !== view;
+    document.getElementById("tab-" + v).setAttribute("aria-selected", v === view);
+  }
+}
+document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => { location.hash = b.dataset.view; show(b.dataset.view); }));
+document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => { location.hash = b.dataset.go; show(b.dataset.go); window.scrollTo({ top: 0, behavior: "smooth" }); }));
+window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+show(location.hash.slice(1));
+
+/* ---------- screenshots ---------- */
+function pickShot(i) {
+  const s = SHOTS[i];
+  $("#shotImg").src = s.src; $("#shotImg").alt = s.alt; $("#shotCap").textContent = s.caption;
+  document.querySelectorAll("#shotTabs .chip").forEach((c, j) => c.setAttribute("aria-pressed", j === i));
+}
+SHOTS.forEach((s, i) => {
+  const b = document.createElement("button");
+  b.className = "chip"; b.type = "button"; b.textContent = s.label;
+  b.addEventListener("click", () => pickShot(i));
+  $("#shotTabs").appendChild(b);
+});
+pickShot(0);
+
+/* ---------- matcher demo ---------- */
+const APPLIED = DATA.applied_for;
+const cands = DATA.candidates.map(c => {
+  const scored = c.top.filter(t => t.ai_score !== null);
+  const best = scored.reduce((a, b) => (b.ai_score > (a ? a.ai_score : -1) ? b : a), null);
+  const applied = c.top.find(t => t.job_code === APPLIED);
+  const better = best && best.job_code !== APPLIED && best.ai_score >= 75;
+  return { ...c, best, applied, better };
+});
+const nBetter = cands.filter(c => c.better).length;
+$("#summaryLine").textContent = `${nBetter} of ${cands.length} candidates fit a different opening better than the one they applied for`;
+
+function renderDetail(c) {
+  const appliedTxt = c.applied
+    ? `Applied for ${esc(DATA.jobs[APPLIED].title)}: scored <b class="num">${c.applied.ai_score}</b> (${rec(c.applied.ai_score)})`
+    : `Applied for ${esc(DATA.jobs[APPLIED].title)}: not in this candidate's top 3 closest jobs`;
+  const banner = c.better
+    ? `<div class="banner">Better opening found: <b>${esc(c.best.job_title)}</b> scored ${c.best.ai_score}. Checked against one job only, this match would be missed.</div>`
+    : `<div class="banner neutral">The job they applied for is already their best fit.</div>`;
+  const rows = c.top.map(t => {
+    const isBest = c.best && t.job_code === c.best.job_code;
+    const r = rec(t.ai_score);
+    return `<div class="jobrow${isBest ? " best" : ""}">
+      <div class="jr-top">
+        <div><span class="jr-title">${esc(t.job_title)}</span> <span class="jr-code mono">${esc(t.job_code)}</span>${t.job_code === APPLIED ? ' <span class="muted">· applied for</span>' : ""}</div>
+        <div class="score">${isBest ? '<span class="badge b-best">Best fit</span>' : ""}<span class="badge b-${r}">${r}</span><span class="n">${t.ai_score}</span></div>
+      </div>
+      <div class="simline"><span>Free-step similarity</span><span class="track"><i style="width:${Math.round(t.similarity * 100)}%"></i></span><span class="num">${t.similarity.toFixed(2)}</span></div>
+      <p class="reason">${esc(t.reason)}</p>
+    </div>`;
+  }).join("");
+  $("#detail").innerHTML = `<div class="detail-head"><h3>${esc(c.name)}</h3><span class="applied">${appliedTxt}</span></div>${banner}
+    <p class="caption">The free step picked these 3 out of ${DATA.n_jobs} open jobs. Only these went to the AI.</p>${rows}`;
+}
+function selectCand(i) {
+  document.querySelectorAll(".person").forEach((p, j) => p.setAttribute("aria-selected", j === i));
+  renderDetail(cands[i]);
+}
+cands.forEach((c, i) => {
+  const b = document.createElement("button");
+  b.className = "person"; b.type = "button"; b.setAttribute("role", "option");
+  b.innerHTML = `<span>${esc(c.name)}</span><small>${c.better ? "better match" : "fits applied job"}</small>`;
+  b.prepend(Object.assign(document.createElement("span"), { className: "dot" + (c.better ? "" : " same") }));
+  b.addEventListener("click", () => selectCand(i));
+  $("#people").appendChild(b);
+});
+selectCand(Math.max(0, cands.findIndex(c => c.name === "Ananya Iyer")));
+
+/* ---------- talent pool ---------- */
+const sel = $("#jobPick");
+Object.values(DATA.jobs).forEach(j => sel.add(new Option(`${j.job_code} · ${j.title}`, j.job_code)));
+function renderPool(code) {
+  const list = DATA.pool[code];
+  const strong = list.filter(x => x.similarity >= DATA.pool_min);
+  const rows = list.map(x => `<div class="cand${x.similarity >= DATA.pool_min ? "" : " weak"}"><span>${esc(x.name)}</span><span class="track"><i style="width:${Math.round(x.similarity * 100)}%"></i></span><span class="num">${x.similarity.toFixed(2)}</span></div>`).join("");
+  const msg = strong.length
+    ? `<div class="banner">${strong.length} strong match${strong.length > 1 ? "es" : ""} already in the pool. Next: a recruiter checks they are available and interested.</div>`
+    : `<div class="banner neutral">No strong match in the pool (best ${list[0].similarity.toFixed(2)}). Start fresh sourcing for this role.</div>`;
+  $("#poolOut").innerHTML = `<div style="display:grid;gap:10px">${msg}<p class="caption">Closest 3 people in the pool. Faded rows are below the 0.45 line.</p>${rows}</div>`;
+}
+sel.addEventListener("change", () => renderPool(sel.value));
+sel.value = "JOB-09"; renderPool("JOB-09");
+</script>
