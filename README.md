@@ -62,6 +62,13 @@ The same workflow in n8n, after a successful run (each node shows a green tick a
 
 ![n8n workflow: Gmail Trigger, Extract from File, Gemini, Parse AI JSON, Google Sheets](docs/screenshots/01_workflow.png)
 
+## New: Smart Job Matcher prototype
+
+[`matcher/`](matcher/) checks one resume against **every** open job. A free embeddings step
+shortlists the top 3 jobs, and the AI scores only those 3. In a test with 10 resumes and 15 jobs,
+7 of 10 candidates had a better-fitting opening than the one they applied for, using 80% fewer
+AI calls (about Rs 0.02 per resume, measured). See [`matcher/README.md`](matcher/README.md).
+
 ## Project structure
 
 | Path | What it is |
@@ -73,6 +80,8 @@ The same workflow in n8n, after a successful run (each node shows a green tick a
 | `scripts/generate_sample_resumes.py` | Creates 10 fake resume PDFs with reportlab |
 | `sample_resumes/` | The 10 generated PDFs (3 strong, 4 medium, 3 weak fit) |
 | `scripts/test_scoring.py` | Scores the sample PDFs from Python, without n8n |
+| `matcher/` | Smart Job Matcher prototype: one resume vs all open jobs |
+| `prompts/matching_prompt.md` | Rubric for scoring a resume against any job |
 | `sheet_template.csv` | Header row for the Google Sheet |
 | `docs/screenshots/` | Screenshots of the workflow running |
 

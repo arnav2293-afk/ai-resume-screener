@@ -1,0 +1,92 @@
+[
+  {
+    "job_code": "JOB-01",
+    "title": "AI Intern - Workflow Automation",
+    "client": "Made-up Client A",
+    "description": "Build automation workflows in n8n, Make or Zapier. Call LLM APIs such as Claude to classify and extract data as JSON. Write Python scripts and connect REST APIs, webhooks and Google Sheets. Handle retries, timeouts and invalid model output."
+  },
+  {
+    "job_code": "JOB-02",
+    "title": "Junior Data Analyst",
+    "client": "Made-up Client B",
+    "description": "Clean and analyse business data with Python, pandas and SQL. Build dashboards in Power BI or Excel. Find trends, explain insights to non-technical teams and keep reports up to date."
+  },
+  {
+    "job_code": "JOB-03",
+    "title": "Machine Learning Engineer Intern",
+    "client": "Made-up Client C",
+    "description": "Train and evaluate machine learning and NLP models with Python, scikit-learn, PyTorch and Hugging Face Transformers. Prepare datasets, run experiments and report accuracy."
+  },
+  {
+    "job_code": "JOB-04",
+    "title": "Frontend Web Developer Intern",
+    "client": "Made-up Client D",
+    "description": "Build responsive web pages with JavaScript, React and Node.js. Consume REST APIs, work with MongoDB, and ship features with Git."
+  },
+  {
+    "job_code": "JOB-05",
+    "title": "Backend Python Developer",
+    "client": "Made-up Client E",
+    "description": "Write REST APIs in Python with Django or Flask. Write unit tests, work with PostgreSQL, use Git and Linux. Strong data structures and problem solving."
+  },
+  {
+    "job_code": "JOB-06",
+    "title": "Accounts and Taxation Executive",
+    "client": "Made-up Client F",
+    "description": "Prepare invoices, maintain books of accounts in Tally ERP, file GST returns and handle bookkeeping. B.Com preferred. Strong Excel skills."
+  },
+  {
+    "job_code": "JOB-07",
+    "title": "Mechanical Design Engineer",
+    "client": "Made-up Client G",
+    "description": "Create CAD models and drawings in SolidWorks, AutoCAD or CATIA. Support quality inspection and manufacturing. B.E. Mechanical required."
+  },
+  {
+    "job_code": "JOB-08",
+    "title": "Graphic Designer",
+    "client": "Made-up Client H",
+    "description": "Design social media creatives, posters and brand identity using Adobe Photoshop, Illustrator, Canva and Figma. Portfolio required."
+  },
+  {
+    "job_code": "JOB-09",
+    "title": "Business Analyst - Operations",
+    "client": "Made-up Client I",
+    "description": "Automate operational reports with Google Sheets, Excel and simple Zapier automations. Build Power BI dashboards and write clear summaries for managers. Business or analytics background."
+  },
+  {
+    "job_code": "JOB-10",
+    "title": "Relationship Manager - Wealth",
+    "client": "Made-up Bank J",
+    "description": "Manage high net worth client relationships, advise on investment products and grow assets under management. 5+ years in wealth management. NISM certification preferred."
+  },
+  {
+    "job_code": "JOB-11",
+    "title": "Credit Analyst",
+    "client": "Made-up Bank K",
+    "description": "Analyse company financial statements, assess credit risk and prepare credit notes for lending decisions. CA or MBA Finance."
+  },
+  {
+    "job_code": "JOB-12",
+    "title": "Treasury Manager",
+    "client": "Made-up NBFC L",
+    "description": "Manage liquidity, fund raising and banking relationships. Monitor cash flow forecasts and interest rate risk. 8+ years in treasury."
+  },
+  {
+    "job_code": "JOB-13",
+    "title": "Chief Financial Officer",
+    "client": "Made-up Company M",
+    "description": "Lead finance, accounts, audit, fund raising and investor relations. 15+ years of leadership experience. Chartered Accountant."
+  },
+  {
+    "job_code": "JOB-14",
+    "title": "Information Security Lead",
+    "client": "Made-up AMC N",
+    "description": "Lead security operations, network security, access control and compliance audits. 10+ years in cyber security at a financial institution."
+  },
+  {
+    "job_code": "JOB-15",
+    "title": "Telegram and Chatbot Developer",
+    "client": "Made-up Client O",
+    "description": "Build bots that fetch data from public APIs and reply to users. Python, REST APIs, web scraping with BeautifulSoup, and Git."
+  }
+]
