@@ -4,12 +4,14 @@
   var V = window.CinValidator;
   var $ = function (id) { return document.getElementById(id); };
   var el = {
-    ids: $('ids'), lineCount: $('line-count'), error: $('ids-error'),
+    ids: $('ids'), editor: $('editor'), gutter: $('gutter'), backdrop: $('backdrop'),
+    lineCount: $('line-count'), error: $('ids-error'),
     check: $('check-btn'), sample: $('sample-btn'), clear: $('clear-btn'),
     empty: $('empty-state'), results: $('results'), sub: $('results-sub'),
-    tiles: $('tiles'), notice: $('notice'), chips: $('chips'), search: $('search'), sort: $('sort'),
+    tiles: $('tiles'), notice: $('notice'), fixNotice: $('fix-notice'),
+    chips: $('chips'), search: $('search'), sort: $('sort'),
     tbody: $('tbody'), tableEmpty: $('table-empty'), table: $('table'), pager: $('pager'),
-    copyInvalid: $('copy-invalid-btn'), exportBtn: $('export-btn'),
+    copyInvalid: $('copy-invalid-btn'), exportBtn: $('export-btn'), exportLabel: $('export-label'),
     help: $('help'), toast: $('toast')
   };
 
@@ -17,11 +19,29 @@
     'L17110MH1973PLC019786', 'U72200KA2008PTC045678', 'U74999DL2019OPC351234',
     'U40100TN1957GOI002345', 'AAB-1234', 'U72200XX2015PTC123456',
     'L17110MH2031PLC019786', 'U72200KA2008ABC045678', 'U7220KA2008PTC04567',
-    'AB-12345', 'u72200ka2008ptc045678', 'ABCDE1234F'
+    'AB-12345', 'u72200ka2008ptc045678', 'ABCDE1234F', 'L65920MH1994PLCO80618'
   ].join('\n');
 
   var PAGE = 100;
-  var state = { data: [], truncated: false, max: 5000, filter: 'all', q: '', sort: 'problems', limit: PAGE, open: {}, checked: false };
+  var state = { data: [], truncated: false, max: 5000, filter: 'all', q: '', sort: 'problems', limit: PAGE, open: {}, checked: false, lines: {} };
+
+  /* ---------- icons ---------- */
+  function svg(size, body, sw) {
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (sw || 2) +
+      '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + body + '</svg>';
+  }
+  var ICON = {
+    check: svg(13, '<path d="M5 12.5l4.5 4.5L19 7.5"/>', 2.8),
+    bang: svg(13, '<path d="M12 6v8"/><path d="M12 18.5h.01"/>', 2.8),
+    validTile: svg(18, '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16 10"/>'),
+    invalidTile: svg(18, '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5"/><path d="M12 16.5h.01"/>'),
+    building: svg(18, '<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16"/><path d="M15 9h4a1 1 0 0 1 1 1v11"/><path d="M8 8h3M8 12h3M8 16h3M3 21h18"/>'),
+    people: svg(18, '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M21.5 20a6.5 6.5 0 0 0-4-6"/>'),
+    wand: svg(16, '<path d="m3 21 10-10"/><path d="M15 3v3M15 10v3M11 7h-1M20 7h-2M18.2 4.2 17 5.4M18.2 9.8 17 8.6"/>'),
+    chevron: svg(18, '<path d="m6 9 6 6 6-6"/>'),
+    toast: svg(16, '<path d="M5 12.5l4.5 4.5L19 7.5"/>', 2.6),
+    warn: svg(16, '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>')
+  };
 
   /* ---------- helpers ---------- */
   function esc(s) {
@@ -33,8 +53,8 @@
   function plural(n, one, many) { return fmt(n) + ' ' + (n === 1 ? one : (many || one + 's')); }
   var toastTimer;
   function toast(msg) {
-    el.toast.textContent = msg; el.toast.hidden = false;
-    clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.toast.hidden = true; }, 2200);
+    el.toast.innerHTML = ICON.toast + '<span>' + esc(msg) + '</span>'; el.toast.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.toast.hidden = true; }, 2400);
   }
   function copy(text) {
     if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
@@ -43,7 +63,6 @@
     try { document.execCommand('copy'); } finally { document.body.removeChild(t); }
     return Promise.resolve();
   }
-  var CHEVRON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 
   /* ---------- segments ---------- */
   function segsHtml(segments) {
@@ -51,16 +70,81 @@
       var cls = 'seg seg--' + s.key + (s.bad ? ' is-bad' : '') + (s.missing ? ' is-missing' : '');
       return '<div class="' + cls + '">' +
         '<span class="seg__chars">' + esc(s.chars) + '</span>' +
-        (s.label ? '<span class="seg__label">' + esc(s.label) + '</span>' : '<span class="seg__label">&nbsp;</span>') +
+        '<span class="seg__label">' + (s.label ? esc(s.label) : '&nbsp;') + '</span>' +
         (s.meaning ? '<span class="seg__meaning">' + esc(s.meaning) + '</span>' : '') +
         '</div>';
     }).join('');
   }
 
+  // The ID with its wrong characters wrapped in <mark>.
+  function idHtml(r) {
+    var id = r.id || r.input.trim(), out = '', pos = 0;
+    (r.badRanges || []).slice().sort(function (a, b) { return a[0] - b[0]; }).forEach(function (g) {
+      if (g[0] < pos) return;
+      out += esc(id.slice(pos, g[0])) + '<mark>' + esc(id.slice(g[0], g[1])) + '</mark>';
+      pos = g[1];
+    });
+    return out + esc(id.slice(pos));
+  }
+
+  /* ---------- editor: line numbers + problem markers ---------- */
+  function lineCount() { return el.ids.value ? el.ids.value.split('\n').length : 1; }
+  function renderEditor() {
+    var n = Math.min(lineCount(), 20000), g = '', b = '';
+    for (var i = 1; i <= n; i++) {
+      var s = state.checked ? state.lines[i] : '';
+      g += '<div class="gl' + (s ? ' is-' + s : '') + '">' + i + '</div>';
+      b += '<div class="bl' + (s && s !== 'ok' ? ' is-' + s : '') + '" data-l="' + i + '"></div>';
+    }
+    el.gutter.innerHTML = '<div class="gi">' + g + '</div>';
+    el.backdrop.innerHTML = '<div class="bi">' + b + '</div>';
+    autoSize(n);
+    syncScroll();
+  }
+  // Grow the box with the list (about 8 to 16 lines), then scroll inside it.
+  var userResized = false;
+  function autoSize(n) {
+    if (userResized) return;
+    var lh = parseFloat(getComputedStyle(el.ids).lineHeight) || 24;
+    var lines = Math.max(window.innerWidth <= 760 ? 7 : 8, Math.min(n, window.innerWidth <= 760 ? 12 : 16));
+    el.ids.style.height = (lines * lh + 24) + 'px';
+  }
+  function syncScroll() {
+    var y = 'translateY(' + (-el.ids.scrollTop) + 'px)';
+    if (el.gutter.firstChild) el.gutter.firstChild.style.transform = y;
+    if (el.backdrop.firstChild) el.backdrop.firstChild.style.transform = y;
+  }
+  var editorFrame;
+  function scheduleEditor() { cancelAnimationFrame(editorFrame); editorFrame = requestAnimationFrame(renderEditor); }
+  function computeLines() {
+    var L = {};
+    state.data.forEach(function (r) {
+      var s = !r.valid ? 'bad' : r.duplicateOf ? 'dup' : 'ok';
+      var cur = L[r.line];
+      if (cur === 'bad' || (cur === 'dup' && s === 'ok')) return;
+      L[r.line] = s;
+    });
+    state.lines = L;
+  }
+  function selectLine(n) {
+    var lines = el.ids.value.split('\n');
+    if (n < 1 || n > lines.length) return;
+    var start = 0;
+    for (var i = 0; i < n - 1; i++) start += lines[i].length + 1;
+    el.ids.focus({ preventScroll: true });
+    el.ids.setSelectionRange(start, start + lines[n - 1].length);
+    var lh = parseFloat(getComputedStyle(el.ids).lineHeight) || 24;
+    el.ids.scrollTop = Math.max(0, (n - 3) * lh);
+    syncScroll();
+    el.editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    var bar = el.backdrop.querySelector('[data-l="' + n + '"]');
+    if (bar) { bar.classList.add('is-flash'); setTimeout(function () { bar.classList.remove('is-flash'); }, 1400); }
+  }
+
   /* ---------- input ---------- */
   function countIds(text) {
     var n = 0;
-    String(text).split(/\r\n|\r|\n/).forEach(function (l) {
+    String(text).split('\n').forEach(function (l) {
       l.split(/[,;\t]/).forEach(function (p) { if (p.trim()) n++; });
     });
     return n;
@@ -68,21 +152,30 @@
   function updateCount() {
     var n = countIds(el.ids.value);
     el.clear.hidden = !el.ids.value.length;
+    var bad = state.checked ? state.data.filter(function (r) { return !r.valid; }).length : 0;
     if (!n) { el.lineCount.textContent = 'No IDs yet'; el.lineCount.style.color = ''; return; }
     if (n > state.max) {
       el.lineCount.textContent = fmt(n) + ' IDs · only the first ' + fmt(state.max) + ' will be checked';
       el.lineCount.style.color = 'var(--warning)';
     } else {
-      el.lineCount.textContent = plural(n, 'ID');
-      el.lineCount.style.color = '';
+      el.lineCount.textContent = plural(n, 'ID') + (bad ? ' · ' + plural(bad, 'problem') + ' marked in red' : '');
+      el.lineCount.style.color = bad ? 'var(--error)' : '';
     }
   }
   function showError(msg) {
-    el.error.textContent = msg; el.error.hidden = !msg;
+    el.error.innerHTML = msg ? ICON.warn + '<span>' + esc(msg) + '</span>' : '';
+    el.error.hidden = !msg;
+    el.editor.classList.toggle('is-invalid', !!msg);
     if (msg) el.ids.setAttribute('aria-invalid', 'true'); else el.ids.removeAttribute('aria-invalid');
   }
 
   /* ---------- run ---------- */
+  function reset() {
+    state.checked = false; state.data = []; state.lines = {};
+    el.results.hidden = true; el.empty.hidden = false;
+    el.check.textContent = 'Check IDs';
+    updateCount(); renderEditor();
+  }
   function run(opts) {
     opts = opts || {};
     var out = V.validateText(el.ids.value, { max: state.max });
@@ -91,19 +184,38 @@
         showError(el.ids.value.trim() ? 'We couldn’t find any IDs. Put one CIN or LLPIN on each line.' : 'Paste at least one CIN or LLPIN first.');
         el.ids.focus();
       }
-      state.checked = false; state.data = [];
-      el.results.hidden = true; el.empty.hidden = false;
-      el.check.textContent = 'Check IDs';
+      reset();
       return;
     }
     showError('');
     state.data = out.results; state.truncated = out.truncated; state.checked = true;
     state.limit = PAGE; state.open = {};
     if (opts.resetFilters) { state.filter = 'all'; state.q = ''; el.search.value = ''; }
+    computeLines();
     el.empty.hidden = true; el.results.hidden = false;
     el.check.textContent = 'Check again';
-    render();
+    updateCount(); renderEditor(); render();
     if (opts.scroll) el.results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* ---------- fixes ---------- */
+  function applyFix(lines, r) {
+    var L = lines[r.line - 1], target = r.input.trim();
+    if (L === undefined || !r.suggestion) return false;
+    var i = L.indexOf(target);
+    if (i === -1) return false;
+    lines[r.line - 1] = L.slice(0, i) + r.suggestion + L.slice(i + target.length);
+    return true;
+  }
+  function fix(rs) {
+    var lines = el.ids.value.split('\n'), n = 0;
+    rs.forEach(function (r) { if (applyFix(lines, r)) n++; });
+    if (!n) return;
+    var keep = el.ids.scrollTop;
+    el.ids.value = lines.join('\n');
+    el.ids.scrollTop = keep;
+    run();
+    toast(n === 1 ? 'Fixed line ' + rs[0].line + ' in your list' : 'Fixed ' + n + ' IDs in your list');
   }
 
   /* ---------- derived counts ---------- */
@@ -117,13 +229,11 @@
     { key: 'unlisted', label: 'Unlisted', test: function (r) { return r.valid && r.fields.listed === 'Unlisted'; } },
     { key: 'dups', label: 'Duplicates', test: function (r) { return !!r.duplicateOf; } }
   ];
-  function count(key) {
-    var f = FILTERS.filter(function (x) { return x.key === key; })[0];
-    return state.data.filter(f.test).length;
-  }
+  function filterOf(key) { return FILTERS.filter(function (x) { return x.key === key; })[0]; }
+  function count(key) { return state.data.filter(filterOf(key).test).length; }
 
   function visibleRows() {
-    var f = FILTERS.filter(function (x) { return x.key === state.filter; })[0];
+    var f = filterOf(state.filter);
     var q = state.q.trim().toLowerCase();
     var rows = state.data.filter(function (r) {
       if (!f.test(r)) return false;
@@ -139,9 +249,7 @@
   }
 
   /* ---------- render ---------- */
-  function render() {
-    renderSummary(); renderTiles(); renderChips(); renderTable();
-  }
+  function render() { renderSummary(); renderTiles(); renderChips(); renderTable(); }
 
   function renderSummary() {
     var total = state.data.length, inv = count('invalid'), dups = count('dups');
@@ -150,9 +258,20 @@
     el.sub.textContent = parts.join(' · ');
     el.copyInvalid.disabled = !inv;
     el.copyInvalid.textContent = inv ? 'Copy ' + plural(inv, 'invalid ID') : 'No invalid IDs';
+
+    var fixable = state.data.filter(function (r) { return r.suggestion; });
+    if (fixable.length) {
+      el.fixNotice.hidden = false;
+      el.fixNotice.innerHTML = '<span class="notice__icon">' + ICON.wand + '</span><span class="notice__text"><strong>' +
+        plural(fixable.length, 'ID looks', 'IDs look') + ' like a simple typo</strong>, such as the letter O typed instead of a zero. ' +
+        'We can correct ' + (fixable.length === 1 ? 'it' : 'them') + ' in your list.</span>' +
+        '<button type="button" class="btn btn--primary btn--sm" data-fix-all>Fix ' + (fixable.length === 1 ? 'it' : 'all ' + fixable.length) + '</button>';
+    } else el.fixNotice.hidden = true;
+
     if (state.truncated) {
       el.notice.hidden = false;
-      el.notice.textContent = 'Your list has more than ' + fmt(state.max) + ' IDs, so only the first ' + fmt(state.max) + ' were checked. Split longer lists into batches.';
+      el.notice.innerHTML = '<span class="notice__icon">' + ICON.warn + '</span><span class="notice__text">Your list has more than ' + fmt(state.max) +
+        ' IDs, so only the first ' + fmt(state.max) + ' were checked. Split longer lists into batches.</span>';
     } else el.notice.hidden = true;
   }
 
@@ -161,19 +280,21 @@
     var cos = count('companies'), llps = count('llps'), listed = count('listed');
     var pct = function (n) { return total ? Math.round(n / total * 100) : 0; };
     var tiles = [
-      { f: 'valid', label: 'Valid', value: valid, sub: pct(valid) + '% of ' + fmt(total) + ' checked', dot: 'var(--success)', track: 'var(--success-tint)', meter: valid / total },
-      { f: 'invalid', label: 'Invalid', value: inv, sub: inv ? 'Fix these before filing' : 'Nothing to fix', dot: 'var(--error)', track: 'var(--error-tint)', meter: inv / total },
-      { f: 'companies', label: 'Companies', value: cos, sub: cos ? fmt(listed) + ' listed · ' + fmt(cos - listed) + ' unlisted' : 'No valid CINs', dot: 'var(--seg-industry)' },
-      { f: 'llps', label: 'LLPs', value: llps, sub: llps ? 'LLPINs have no state or year' : 'No valid LLPINs', dot: 'var(--brand)' }
+      { f: 'valid', label: 'Valid', icon: ICON.validTile, value: valid, sub: pct(valid) + '% of ' + fmt(total) + ' checked', dot: 'var(--success)', track: 'var(--success-tint)', meter: valid / total },
+      { f: 'invalid', label: 'Invalid', icon: ICON.invalidTile, value: inv, sub: inv ? 'Fix these before filing' : 'Nothing to fix', dot: 'var(--error)', track: 'var(--error-tint)', meter: inv / total },
+      { f: 'companies', label: 'Companies', icon: ICON.building, value: cos, sub: cos ? fmt(listed) + ' listed · ' + fmt(cos - listed) + ' unlisted' : 'No valid CINs', dot: 'var(--seg-industry)', track: 'var(--seg-industry-tint)' },
+      { f: 'llps', label: 'LLPs', icon: ICON.people, value: llps, sub: llps ? 'LLPINs have no state or year' : 'No valid LLPINs', dot: 'var(--brand)', track: 'var(--brand-soft)' }
     ];
     el.tiles.innerHTML = tiles.map(function (t) {
-      return '<button type="button" class="tile" data-filter="' + t.f + '" aria-pressed="' + (state.filter === t.f) + '"' +
-        ' style="--dot:' + t.dot + (t.track ? ';--track:' + t.track : '') + '"' +
-        ' aria-label="' + esc(t.label + ': ' + t.value + '. ' + t.sub + '. Show only these') + '">' +
-        '<span class="tile__label"><span class="tile__dot"></span>' + t.label + '</span>' +
+      var on = state.filter === t.f;
+      return '<button type="button" class="tile" data-filter="' + t.f + '" aria-pressed="' + on + '"' +
+        ' style="--dot:' + t.dot + ';--track:' + t.track + '"' +
+        ' aria-label="' + esc(t.label + ': ' + t.value + '. ' + t.sub + (on ? '. Showing only these, press to show all' : '. Show only these')) + '">' +
+        '<span class="tile__top"><span class="tile__label">' + t.label + '</span><span class="tile__icon">' + t.icon + '</span></span>' +
         '<span class="tile__value">' + fmt(t.value) + '</span>' +
         '<span class="tile__sub">' + esc(t.sub) + '</span>' +
         (t.meter !== undefined ? '<span class="meter" aria-hidden="true"><span style="width:' + (t.meter * 100).toFixed(1) + '%"></span></span>' : '') +
+        '<span class="tile__hint" aria-hidden="true">' + (on ? 'Showing · clear' : 'Show only') + '</span>' +
         '</button>';
     }).join('');
   }
@@ -189,27 +310,33 @@
 
   function cell(value, label, bad, extraClass) {
     var faint = value === '—';
-    var cls = (faint ? 'cell-faint is-empty-sm ' : '') + (extraClass || '');
+    var cls = ((faint ? 'cell-faint is-empty-sm ' : '') + (extraClass || '')).trim();
     var inner = bad ? '<span class="bad-field">' + esc(value) + '</span>' : esc(value);
-    return '<td data-label="' + label + '"' + (cls.trim() ? ' class="' + cls.trim() + '"' : '') + '>' + inner + '</td>';
+    return '<td data-label="' + label + '"' + (cls ? ' class="' + cls + '"' : '') + '>' + inner + '</td>';
   }
 
-  function detailsText(r) {
+  function fixHtml(r, idx) {
+    if (!r.suggestion) return '';
+    return '<div class="fix"><span>Did you mean <code>' + esc(r.suggestion) + '</code><span class="q">?</span></span>' +
+      '<button type="button" class="btn btn--secondary btn--sm" data-fix="' + idx + '">Fix in list</button></div>';
+  }
+
+  function detailsCell(r, idx) {
     if (!r.valid) {
       var more = r.errors.length > 1 ? ' <span class="more">+' + (r.errors.length - 1) + ' more</span>' : '';
-      return { html: esc(r.errors[0].msg) + more, cls: 'is-error' };
+      return '<td class="cell-details is-error">' + esc(r.errors[0].msg) + more + fixHtml(r, idx) + '</td>';
     }
     var bits = [];
     if (r.duplicateOf) bits.push('Same ID as line ' + r.duplicateOf);
     if (r.kind === 'LLPIN') bits.push('No state or year in an LLPIN');
     if (r.notes.length) bits.push(r.notes.join(', '));
-    return bits.length ? { html: esc(bits.join(' · ')), cls: r.kind === 'LLPIN' || r.duplicateOf ? 'keep-sm' : '' } : { html: '—', cls: 'cell-faint' };
+    if (!bits.length) return '<td class="cell-details cell-faint">—</td>';
+    return '<td class="cell-details' + (r.kind === 'LLPIN' || r.duplicateOf ? ' keep-sm' : '') + '">' + esc(bits.join(' · ')) + '</td>';
   }
 
   // One-line summary used on phones instead of five labelled columns.
   function factsHtml(r) {
-    var b = r.badFields || {};
-    var bits;
+    var b = r.badFields || {}, bits;
     if (r.kind === 'LLPIN') bits = [['LLP']];
     else if (r.kind === 'CIN' && r.segments.length === 6) {
       bits = [[r.fields.listed, b.listed], [r.fields.type, b.type], [r.fields.state, b.state], [r.fields.year, b.year]];
@@ -222,12 +349,13 @@
   function rowHtml(r, idx) {
     var open = !!state.open[idx];
     var b = r.badFields || {};
-    var d = detailsText(r);
-    var badges = '<span class="badge ' + (r.valid ? 'badge--valid">Valid' : 'badge--invalid">Invalid') + '</span>' +
+    var badges = (r.valid
+      ? '<span class="badge badge--valid">' + ICON.check + 'Valid</span>'
+      : '<span class="badge badge--invalid">' + ICON.bang + 'Invalid</span>') +
       (r.duplicateOf ? '<span class="badge badge--dup">Duplicate</span>' : '');
     var html = '<tr class="row ' + (r.valid ? 'is-valid' : 'is-invalid') + (open ? ' is-open' : '') + '" data-idx="' + idx + '">' +
       '<td class="cell-line"><span class="sm-only">Line </span>' + r.line + '</td>' +
-      '<td class="cell-id">' + esc(r.id || r.input) + '</td>' +
+      '<td class="cell-id">' + idHtml(r) + '</td>' +
       '<td class="cell-status"><div class="badges">' + badges + '</div></td>' +
       factsHtml(r) +
       cell(r.kind === 'CIN' ? 'Company' : r.kind === 'LLPIN' ? 'LLP' : '—', 'Kind') +
@@ -235,9 +363,9 @@
       cell(r.fields.state, 'State', b.state) +
       cell(r.fields.year, 'Year', b.year) +
       cell(r.fields.type, 'Type', b.type, 'cell-type') +
-      '<td class="cell-details ' + d.cls + '">' + d.html + '</td>' +
+      detailsCell(r, idx) +
       '<td class="cell-toggle"><button type="button" class="toggle" aria-expanded="' + open + '" aria-controls="detail-' + idx + '">' +
-      CHEVRON + '<span class="toggle__text">' + (open ? 'Hide breakdown' : 'Show breakdown') + '</span>' +
+      ICON.chevron + '<span class="toggle__text">' + (open ? 'Hide breakdown' : 'Show breakdown') + '</span>' +
       '<span class="sr-only"> for ' + esc(r.id) + '</span></button></td>' +
       '</tr>';
     if (open) html += detailHtml(r, idx);
@@ -247,10 +375,10 @@
   function detailHtml(r, idx) {
     var meta = [];
     if (r.kind === 'CIN' && r.segments.length === 6) {
-      meta.push('Industry code (NIC): <strong class="mono">' + esc(r.fields.industry) + '</strong>');
-      meta.push('Registration no.: <strong class="mono">' + esc(r.fields.reg) + '</strong>');
+      meta.push('Industry code (NIC) <strong class="mono">' + esc(r.fields.industry) + '</strong>');
+      meta.push('Registration no. <strong class="mono">' + esc(r.fields.reg) + '</strong>');
     }
-    if (r.input.trim() !== r.id) meta.push('You typed: <span class="mono">' + esc(r.input.trim()) + '</span>');
+    if (r.input.trim() !== r.id) meta.push('You typed <span class="mono">' + esc(r.input.trim()) + '</span>');
     if (r.duplicateOf) meta.push('Same ID as line ' + r.duplicateOf);
     var body = r.valid
       ? '<p class="detail__summary">' + esc(r.summary) + '</p>'
@@ -258,7 +386,10 @@
     return '<tr class="detail" id="detail-' + idx + '"><td colspan="10"><div class="detail__inner">' +
       '<div class="segs">' + segsHtml(r.segments) + '</div>' + body +
       '<div class="detail__meta">' + meta.map(function (m) { return '<span>' + m + '</span>'; }).join('') +
-      '<button type="button" class="btn btn--secondary btn--sm" data-copy="' + esc(r.id) + '">Copy ID</button></div>' +
+      '<span class="detail__buttons">' +
+      (r.suggestion ? '<button type="button" class="btn btn--primary btn--sm" data-fix="' + idx + '">Fix to ' + esc(r.suggestion) + '</button>' : '') +
+      '<button type="button" class="btn btn--secondary btn--sm" data-goto="' + r.line + '">Show in my list</button>' +
+      '<button type="button" class="btn btn--secondary btn--sm" data-copy="' + esc(r.id) + '">Copy ID</button></span></div>' +
       '</div></td></tr>';
   }
 
@@ -271,11 +402,10 @@
     el.tableEmpty.hidden = !!rows.length;
     if (!rows.length) {
       el.tableEmpty.innerHTML = '<h3>No results match</h3><p class="muted">' +
-        (state.q ? 'Nothing matches “' + esc(state.q) + '”. ' : 'Nothing in this filter. ') +
+        (state.q ? 'Nothing matches “' + esc(state.q) + '”.' : 'Nothing in this filter.') +
         '</p><button type="button" class="btn btn--secondary btn--sm" data-reset>Show all results</button>';
     }
-    var label = state.filter === 'all' && !state.q ? '' : ' (' + fmt(rows.length) + ')';
-    el.exportBtn.textContent = 'Export CSV' + label;
+    el.exportLabel.textContent = 'Export CSV' + (state.filter === 'all' && !state.q ? '' : ' (' + fmt(rows.length) + ')');
     if (rows.length > shown.length) {
       var next = Math.min(PAGE, rows.length - shown.length);
       el.pager.innerHTML = '<span>Showing ' + fmt(shown.length) + ' of ' + fmt(rows.length) + '</span>' +
@@ -303,14 +433,15 @@
   /* ---------- CSV ---------- */
   function exportCsv() {
     var rows = state.visible || state.data;
-    var head = ['Line', 'You typed', 'ID', 'Status', 'Kind', 'Listed', 'State', 'Year', 'Company type', 'Problems', 'Notes'];
+    var head = ['Line', 'You typed', 'ID', 'Status', 'Kind', 'Listed', 'State', 'Year', 'Company type', 'Problems', 'Suggested fix', 'Notes'];
     var q = function (v) { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     var lines = [head.join(',')].concat(rows.map(function (r) {
       var notes = r.notes.slice(); if (r.duplicateOf) notes.push('Duplicate of line ' + r.duplicateOf);
       return [r.line, r.input.trim(), r.id, r.valid ? 'Valid' : 'Invalid',
         r.kind === 'CIN' ? 'Company' : r.kind === 'LLPIN' ? 'LLP' : '',
         r.fields.listed, r.fields.state, r.fields.year, r.fields.typeName,
-        r.errors.map(function (e) { return e.msg; }).join(' '), notes.join('; ')].map(function (v) { return q(v === '—' ? '' : v); }).join(',');
+        r.errors.map(function (e) { return e.msg; }).join(' '), r.suggestion || '', notes.join('; ')
+      ].map(function (v) { return q(v === '—' ? '' : v); }).join(',');
     }));
     var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
     var a = document.createElement('a');
@@ -371,29 +502,31 @@
   /* ---------- events ---------- */
   var debounce;
   el.ids.addEventListener('input', function () {
-    updateCount();
-    if (el.error.textContent) showError('');
-    if (!state.checked && !el.ids.value.trim()) return;
+    updateCount(); scheduleEditor();
+    if (!el.error.hidden) showError('');
     if (state.checked) {
       clearTimeout(debounce);
-      debounce = setTimeout(function () { run(); }, 250);
+      debounce = setTimeout(function () { run(); }, 300);
     }
   });
+  el.ids.addEventListener('scroll', syncScroll);
+  // Respect a manual resize from the corner handle.
+  el.ids.addEventListener('mousedown', function (e) {
+    var r = el.ids.getBoundingClientRect();
+    if (e.clientX > r.right - 18 && e.clientY > r.bottom - 18) userResized = true;
+  });
   el.ids.addEventListener('paste', function () {
-    setTimeout(function () { updateCount(); run({ resetFilters: !state.checked }); }, 0);
+    setTimeout(function () { run({ resetFilters: !state.checked }); }, 0);
   });
   el.ids.addEventListener('keydown', function (e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); run({ fromButton: true, scroll: true }); }
   });
   el.check.addEventListener('click', function () { run({ fromButton: true, scroll: true }); });
-  el.sample.addEventListener('click', function () {
-    el.ids.value = SAMPLE; updateCount(); run({ resetFilters: true, scroll: true });
-  });
+  el.sample.addEventListener('click', function () { el.ids.value = SAMPLE; el.ids.scrollTop = 0; run({ resetFilters: true, scroll: true }); });
   el.clear.addEventListener('click', function () {
-    el.ids.value = ''; updateCount(); showError('');
-    state.checked = false; state.data = []; state.filter = 'all'; state.q = ''; el.search.value = '';
-    el.results.hidden = true; el.empty.hidden = false; el.check.textContent = 'Check IDs';
-    el.ids.focus();
+    el.ids.value = ''; showError('');
+    state.filter = 'all'; state.q = ''; el.search.value = '';
+    reset(); el.ids.focus();
   });
   document.addEventListener('click', function (e) {
     var t = e.target;
@@ -403,6 +536,11 @@
       state.filter = (f.classList.contains('tile') && state.filter === key) ? 'all' : key;
       state.limit = PAGE; renderTiles(); renderChips(); renderTable(); return;
     }
+    var fx = t.closest('[data-fix]');
+    if (fx) { fix([state.data[Number(fx.getAttribute('data-fix'))]]); return; }
+    if (t.closest('[data-fix-all]')) { fix(state.data.filter(function (r) { return r.suggestion; })); return; }
+    var go = t.closest('[data-goto]');
+    if (go) { selectLine(Number(go.getAttribute('data-goto'))); return; }
     var c = t.closest('[data-copy]');
     if (c) { copy(c.getAttribute('data-copy')).then(function () { toast('Copied ' + c.getAttribute('data-copy')); }); return; }
     if (t.closest('[data-more]')) { state.limit += PAGE; renderTable(); return; }
@@ -410,7 +548,7 @@
     if (t.closest('[data-reset]')) { state.filter = 'all'; state.q = ''; el.search.value = ''; render(); return; }
     if (t.closest('[data-open-help]')) { el.help.showModal(); return; }
     if (t.closest('[data-close-help]') || t === el.help) { el.help.close(); return; }
-    if (t.closest('[data-load-500]')) { el.ids.value = make500(); updateCount(); run({ resetFilters: true, scroll: true }); return; }
+    if (t.closest('[data-load-500]')) { el.ids.value = make500(); el.ids.scrollTop = 0; run({ resetFilters: true, scroll: true }); return; }
     var row = t.closest('tr.row');
     if (row && !window.getSelection().toString()) toggleRow(Number(row.getAttribute('data-idx')));
   });
@@ -425,4 +563,5 @@
 
   fillHelp();
   updateCount();
+  renderEditor();
 })();

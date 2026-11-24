@@ -70,8 +70,10 @@ test('first character must be L or U', () => {
   assert.match(msgs(check('X17110MH1973PLC019786')), /^Character 1: “X” must be L \(listed\) or U \(unlisted\)\.$/);
 });
 
-test('letter O instead of zero gets a hint', () => {
-  assert.match(msgs(check('L17110MH1973PLCO19786')), /letter O or I instead of a zero/);
+test('letter O instead of zero gets a hint when no one-click fix exists', () => {
+  assert.match(msgs(check('U72200XX2015PTCO23456')), /letter O or I instead of a zero/);
+  // With a fix available, the fix replaces the hint.
+  assert.doesNotMatch(msgs(check('L17110MH1973PLCO19786')), /letter O or I/);
 });
 
 test('private company cannot be listed', () => {
@@ -110,6 +112,21 @@ test('validateText splits commas and tabs, and caps very long input', () => {
   const out = V.validateText(big, { ...opts, max: 5000 });
   assert.equal(out.results.length, 5000);
   assert.equal(out.truncated, true);
+});
+
+test('bad character ranges point at the wrong part', () => {
+  assert.deepEqual(check('U72200XX2015PTC123456').badRanges, [[6, 8]]);
+  assert.deepEqual(check('L17110MH2031PLC019786').badRanges, [[8, 12]]);
+  assert.deepEqual(check('AB-12345').badRanges, [[0, 2], [3, 8]]);
+  assert.deepEqual(check('L17110MH1973PLC019786').badRanges, []);
+});
+
+test('suggests a fix for obvious typos only', () => {
+  assert.equal(check('L17110MH1973PLCO19786').suggestion, 'L17110MH1973PLC019786');
+  assert.equal(check('U72200OD2015PTC123456').suggestion, 'U72200OR2015PTC123456');
+  assert.equal(check('AAB-12O4').suggestion, 'AAB-1204');
+  assert.equal(check('U72200XX2015PTC123456').suggestion, undefined);
+  assert.equal(check('L17110MH2031PLC019786').suggestion, undefined);
 });
 
 test('garbage input gets a plain explanation', () => {

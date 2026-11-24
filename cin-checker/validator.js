@@ -147,9 +147,9 @@
       });
     }
     r.segments = [
-      { key: 'letters', label: 'Letters', chars: a || '·', meaning: badA ? 'Needs 3 letters' : 'Series', bad: badA },
+      { key: 'letters', label: 'Letters', chars: a || '·', meaning: badA ? 'Needs 3 letters' : 'Series', bad: badA, from: 0, to: a.length },
       { key: 'hyphen', label: '', chars: '-', meaning: '', bad: false },
-      { key: 'number', label: 'Number', chars: b || '·', meaning: badB ? 'Needs 4 digits' : 'Serial no.', bad: badB }
+      { key: 'number', label: 'Number', chars: b || '·', meaning: badB ? 'Needs 4 digits' : 'Serial no.', bad: badB, from: a.length + 1, to: id.length }
     ];
     r.valid = r.errors.length === 0;
     if (r.valid) {
@@ -185,6 +185,7 @@
     }
     if (bad) {
       r.segments = [{ key: 'raw', label: '21 characters', chars: id, meaning: '', bad: true }];
+      r.badRanges = [[bad.index, bad.index + 1]];
       return r;
     }
 
@@ -250,7 +251,7 @@
       reg: badSegs.reg ? 'Not 6 digits' : 'Registration no.'
     };
     r.segments = CIN_SEGMENTS.map(function (s) {
-      return { key: s.key, label: s.label, chars: p[s.key], meaning: meanings[s.key], bad: !!badSegs[s.key] };
+      return { key: s.key, label: s.label, chars: p[s.key], meaning: meanings[s.key], bad: !!badSegs[s.key], from: s.from, to: s.to };
     });
     r.fields = {
       kind: 'Company',
@@ -274,6 +275,38 @@
     return r;
   }
 
+  // Character ranges [from, to) of the parts that are wrong, for highlighting.
+  function badRanges(r) {
+    if (r.badRanges) return r.badRanges;
+    return r.segments.filter(function (s) { return s.bad && s.from !== undefined && s.to > s.from; })
+      .map(function (s) { return [s.from, s.to]; });
+  }
+
+  // Offer a corrected ID when the mistake is an obvious typo
+  // (letter O / I typed in a digit part, or a common wrong state code).
+  function suggest(r, opts) {
+    var id = r.id, cands = [];
+    var digits = function (s) { return s.replace(/O/g, '0').replace(/[IL]/g, '1'); };
+    if (r.kind === 'CIN' && id.length === 21) {
+      var fixed = id.slice(0, 1) + digits(id.slice(1, 6)) + id.slice(6, 8) + digits(id.slice(8, 12)) + id.slice(12, 15) + digits(id.slice(15));
+      var hint = STATE_HINTS[id.slice(6, 8)];
+      cands.push(fixed);
+      if (hint) cands.push(id.slice(0, 6) + hint + id.slice(8), fixed.slice(0, 6) + hint + fixed.slice(8));
+    } else if (r.kind === 'LLPIN') {
+      var p = id.split('-');
+      if (p.length === 2) cands.push(p[0] + '-' + digits(p[1]));
+    }
+    var o = { currentYear: opts && opts.currentYear, noSuggest: true };
+    for (var i = 0; i < cands.length; i++) {
+      if (cands[i] !== id && validate(cands[i], r.line, o).valid) {
+        r.suggestion = cands[i];
+        // The fix button says it better than the generic hint.
+        r.errors.forEach(function (e) { e.msg = e.msg.replace(/ Did you type the letter O or I[^?]*\?/, ''); });
+        return;
+      }
+    }
+  }
+
   /**
    * Validate one line.
    * @param {string} input   raw line as pasted
@@ -281,6 +314,13 @@
    * @param {object} [opts]  { currentYear }
    */
   function validate(input, line, opts) {
+    var r = validateOnly(input, line, opts);
+    r.badRanges = badRanges(r);
+    if (!r.valid && !(opts && opts.noSuggest)) suggest(r, opts);
+    return r;
+  }
+
+  function validateOnly(input, line, opts) {
     var currentYear = (opts && opts.currentYear) || new Date().getFullYear();
     var cleaned = clean(input);
     var r = blankResult(line || 1, input, cleaned);
