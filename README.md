@@ -16,8 +16,9 @@ gets one row, even if they apply twice.
 | **1. AI Resume Screener** (this page) | n8n workflow: Gmail → PDF text → AI score → checked JSON → Google Sheets, no duplicates | Import `n8n/resume_screener_workflow.json` into n8n |
 | **2. Smart Job Matcher** ([`matcher/`](matcher/)) | Checks one resume against **every** open job. A free step shortlists, so the AI scores only 3 | `.venv/bin/streamlit run matcher/app.py` |
 
-A one-page tour of both, with real results, is in [`showcase/index.html`](showcase/index.html)
-(download and open it in a browser).
+**▶ Live demo page:** [arnav2293-afk.github.io/ai-resume-screener/showcase](https://arnav2293-afk.github.io/ai-resume-screener/showcase/)
+A one-page tour of both prototypes with real test results. Click any candidate to see their
+best-matching jobs, AI scores and reasons.
 
 ## Which AI model, and why
 
