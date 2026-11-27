@@ -6,9 +6,14 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+.pytest_cache/
+.ruff_cache/
 
 # OS
 .DS_Store
 
 # Local Claude Code tooling
 .claude/
+
+# Personal documents kept next to the project (sample resumes live in sample_resumes/)
+/*.pdf

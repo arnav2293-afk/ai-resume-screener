@@ -149,7 +149,11 @@ with st.sidebar:
 jobs, resumes, job_vecs, resume_vecs = get_data()
 job_by_code = {j["job_code"]: j for j in jobs}
 job_codes = [j["job_code"] for j in jobs]
-label = lambda code: f"{code} · {job_by_code[code]['title']}"
+
+
+def label(code: str) -> str:
+    return f"{code} · {job_by_code[code]['title']}"
+
 
 tab_match, tab_pool, tab_jobs = st.tabs(["Match a resume", "Talent pool", f"Open jobs ({len(jobs)})"])
 
@@ -214,9 +218,10 @@ with tab_match:
             else:
                 st.markdown("**Step 3 · AI scoring is off** · turn it on in the sidebar to score the shortlist")
             cols = st.columns(len(scored))
-            for col, e in zip(cols, scored):
+            for col, e in zip(cols, scored, strict=True):
                 with col.container(border=True):
-                    st.markdown(f"**{e['job']['title']}**  \n`{e['job']['job_code']}` · similarity {e['job']['similarity']:.2f}")
+                    job = e["job"]
+                    st.markdown(f"**{job['title']}**  \n`{job['job_code']}` · similarity {job['similarity']:.2f}")
                     if e["score"] is not None:
                         st.metric("AI score", e["score"])
                         st.markdown(BADGE[sjm.recommendation_for(e["score"])])
@@ -235,9 +240,11 @@ with tab_match:
             done = [e for e in scored if e["score"] is not None]
             applied_title = job_by_code[res["applied"]]["title"]
             applied_entry = next((e for e in scored if e["job"]["job_code"] == res["applied"]), None)
-            applied_txt = (f"{applied_title} scored {applied_entry['score']} "
-                           f"({sjm.recommendation_for(applied_entry['score'])})" if applied_entry and applied_entry["score"] is not None
-                           else f"{applied_title} was not in the top {len(scored)}, so no AI money was spent on it")
+            if applied_entry and applied_entry["score"] is not None:
+                applied_score = applied_entry["score"]
+                applied_txt = f"{applied_title} scored {applied_score} ({sjm.recommendation_for(applied_score)})"
+            else:
+                applied_txt = f"{applied_title} was not in the top {len(scored)}, so no AI money was spent on it"
             if done:
                 best = max(done, key=lambda e: e["score"])
                 if best["job"]["job_code"] != res["applied"] and best["score"] >= 75:

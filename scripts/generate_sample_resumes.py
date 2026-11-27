@@ -4,7 +4,7 @@ Generate 10 FAKE one-page resume PDFs for testing the screening workflow.
 All names, emails, phone numbers, colleges and projects are made up.
 Emails use the reserved example.com domain so they can never reach a real inbox.
 
-Fit for the AI Intern role (see job_description.md):
+Fit for the AI Intern role (see prompts/job_description.md):
   - 3 strong  (Claude / n8n / Python / APIs + real automation projects)
   - 4 medium  (some Python or ML, little automation or LLM experience)
   - 3 weak    (unrelated background)

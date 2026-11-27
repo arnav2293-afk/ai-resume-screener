@@ -31,7 +31,7 @@ from pypdf import PdfReader
 ROOT = Path(__file__).resolve().parent.parent
 RESUME_DIR = ROOT / "sample_resumes"
 PROMPT_FILE = ROOT / "prompts" / "screening_prompt.md"
-JOB_FILE = ROOT / "job_description.md"
+JOB_FILE = ROOT / "prompts" / "job_description.md"
 
 MODELS = {"gemini": "gemini-3.5-flash-lite", "claude": "claude-haiku-5-5"}
 TIMEOUT_SECONDS = 60      # per request
@@ -67,7 +67,7 @@ def parse_llm_json(raw: str) -> dict:
         # Second try: raw line breaks inside strings are invalid JSON, so turn them into spaces.
         data = json.loads(re.sub(r"[\r\n]+", " ", json_text))
 
-    score = int(round(float(data.get("score", 0))))
+    score = round(float(data.get("score", 0)))
     data["score"] = max(0, min(100, score))
     if data.get("recommendation") not in VALID_RECOMMENDATIONS:
         data["recommendation"] = "Shortlist" if score >= 70 else "Maybe" if score >= 45 else "Reject"
@@ -103,15 +103,16 @@ def make_gemini_caller(system_prompt: str):
             )
         except errors.ClientError as err:  # 4xx
             if err.code in (400, 401, 403):
-                raise ScoringError(f"Gemini rejected the request ({err.code}): check GEMINI_API_KEY", fatal=True)
+                message = f"Gemini rejected the request ({err.code}): check GEMINI_API_KEY"
+                raise ScoringError(message, fatal=True) from err
             if err.code == 429:
-                raise ScoringError("rate limited (free tier quota reached, try again later)")
-            raise ScoringError(f"Gemini API {err.code}")
+                raise ScoringError("rate limited (free tier quota reached, try again later)") from err
+            raise ScoringError(f"Gemini API {err.code}") from err
         except errors.ServerError as err:  # 5xx after retries
-            raise ScoringError(f"Gemini server error {err.code}")
+            raise ScoringError(f"Gemini server error {err.code}") from err
         except Exception as err:
             if "Timeout" in type(err).__name__:
-                raise ScoringError(f"timed out after {SDK_RETRIES} retries")
+                raise ScoringError(f"timed out after {SDK_RETRIES} retries") from err
             raise
         if not response.text:
             raise ScoringError("empty reply (possibly blocked by safety filters)")
@@ -128,7 +129,7 @@ def make_claude_caller(system_prompt: str):
     try:
         client = anthropic.Anthropic(timeout=TIMEOUT_SECONDS, max_retries=SDK_RETRIES)
     except anthropic.AnthropicError as err:
-        raise ScoringError(f"could not create client (is ANTHROPIC_API_KEY set in .env?): {err}", fatal=True)
+        raise ScoringError(f"could not create client (is ANTHROPIC_API_KEY set in .env?): {err}", fatal=True) from err
 
     def call(user_message: str) -> str:
         try:
@@ -139,16 +140,16 @@ def make_claude_caller(system_prompt: str):
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             )
-        except anthropic.AuthenticationError:
-            raise ScoringError("authentication failed: check ANTHROPIC_API_KEY in .env", fatal=True)
-        except anthropic.APITimeoutError:
-            raise ScoringError(f"timed out after {SDK_RETRIES} retries")
-        except anthropic.RateLimitError:
-            raise ScoringError("rate limited")
-        except anthropic.APIConnectionError:
-            raise ScoringError("network problem")
+        except anthropic.AuthenticationError as err:
+            raise ScoringError("authentication failed: check ANTHROPIC_API_KEY in .env", fatal=True) from err
+        except anthropic.APITimeoutError as err:
+            raise ScoringError(f"timed out after {SDK_RETRIES} retries") from err
+        except anthropic.RateLimitError as err:
+            raise ScoringError("rate limited") from err
+        except anthropic.APIConnectionError as err:
+            raise ScoringError("network problem") from err
         except anthropic.APIStatusError as err:
-            raise ScoringError(f"Claude API {err.status_code}")
+            raise ScoringError(f"Claude API {err.status_code}") from err
         if response.stop_reason == "refusal":
             raise ScoringError("Claude declined this request")
         return "".join(block.text for block in response.content if block.type == "text")
