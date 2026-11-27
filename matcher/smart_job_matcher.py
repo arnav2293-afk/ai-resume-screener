@@ -31,7 +31,7 @@ from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
-from test_scoring import extract_pdf_text, parse_llm_json  # reuse the same PDF reader and JSON cleaner
+from test_scoring import extract_pdf_text, parse_llm_json  # noqa: E402  (same PDF reader and JSON cleaner)
 
 JOBS_FILE = ROOT / "matcher" / "jobs.json"
 RESUME_DIR = ROOT / "sample_resumes"
@@ -89,6 +89,9 @@ def make_ai_scorer(system_prompt: str):
         system_instruction=system_prompt, response_mime_type="application/json", max_output_tokens=1000
     )
 
+    def failed(reason: str) -> dict:
+        return {"score": None, "reason": f"needs manual review: {reason}", "tokens_in": 0, "tokens_out": 0}
+
     def score(job, resume_text):
         message = (
             f"<job>\n{job['title']} ({job['job_code']})\n{job['description']}\n</job>\n\n"
@@ -103,9 +106,9 @@ def make_ai_scorer(system_prompt: str):
                 if attempt < 2:
                     time.sleep(10 * (attempt + 1))
                     continue
-                return {"score": None, "reason": "needs manual review: AI server busy", "tokens_in": 0, "tokens_out": 0}
+                return failed("AI server busy")
             except Exception as err:  # bad request, timeout or invalid JSON: never lose the candidate
-                return {"score": None, "reason": f"needs manual review: {type(err).__name__}", "tokens_in": 0, "tokens_out": 0}
+                return failed(type(err).__name__)
         usage = response.usage_metadata
         tokens_out = (usage.candidates_token_count or 0) + (getattr(usage, "thoughts_token_count", 0) or 0)
         return {
@@ -151,7 +154,7 @@ def run_matcher(model, jobs, resumes, use_ai: bool):
                     failed_jobs.add(job["job_code"])
                 row["reason"] = result["reason"]
             rows.append(row)
-            score_txt = f"AI {str(row['ai_score']):>3}  {row['recommendation']:<9}" if scorer else ""
+            score_txt = f"AI {row['ai_score']!s:>3}  {row['recommendation']:<9}" if scorer else ""
             print(f"  {job['job_code']}  {job['title'][:38]:<38}  similarity {sim:.2f}  {score_txt}")
         # Only claim a better fit if every shortlisted job was actually scored
         if best and best[0] != APPLIED_FOR and not failed_jobs and best[1] >= 75:
@@ -169,6 +172,10 @@ def run_matcher(model, jobs, resumes, use_ai: bool):
               f"about Rs {per_resume_inr:.3f} per resume (at Rs {USD_TO_INR:.0f} per USD, assumed)")
         print("Shortlist step: free (runs on this computer)")
 
+    if not scorer:
+        # results.csv holds the last AI run (the demo app and showcase page read it), so keep it.
+        print(f"\nShortlist only: {RESULTS_FILE.relative_to(ROOT)} was not changed.")
+        return
     with RESULTS_FILE.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         writer.writeheader()
@@ -182,7 +189,7 @@ def run_pool(model, jobs, resumes, job_code: str, top_n: int = 3):
         sys.exit(f"Unknown job code {job_code}. Choose from: {', '.join(j['job_code'] for j in jobs)}")
     job_vec = embed(model, [job_text(job)])[0]
     resume_vecs = embed(model, [r["text"] for r in resumes])
-    ranked = sorted(zip(resumes, resume_vecs @ job_vec), key=lambda x: -x[1])
+    ranked = sorted(zip(resumes, resume_vecs @ job_vec, strict=True), key=lambda x: -x[1])
     strong = [(r, s) for r, s in ranked[:top_n] if s >= POOL_MIN_SIMILARITY]
     print(f"New opening: {job['title']} ({job_code})")
     if not strong:
