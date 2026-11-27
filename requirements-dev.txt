@@ -1,0 +1,5 @@
+# Lint and test tools. The tests make no API calls, so the AI SDKs are not needed here.
+pypdf>=5.0.0
+python-dotenv>=1.0.0
+pytest>=8.0
+ruff==0.17.6
